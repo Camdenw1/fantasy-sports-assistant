@@ -1,8 +1,7 @@
 # Refresh runbook
 
-Paste into Claude Code as: **"Read REFRESH.md and do a full refresh."**
-
-Run this twice: **Aug 28** and **Sept 8** (the day before the draft).
+Historical 2026 draft-board runbook for Claude Code or Codex. The automatic
+refresh cutoff has passed; this is a manual workflow for future board work.
 
 ---
 
@@ -135,19 +134,21 @@ overwriting if either profile loses players or violates its K/DST floors.
 
 ### Read the injury audit — this is the important part
 
-The build cross-checks the live injury feed against the hand-set `avail`. It prints
-the conflict during blending and then **aborts before overwriting generated files**
-if anyone tagged IR/PUP/Out/Doubtful/Sus is still valued fully healthy:
+The build cross-checks the live injury feed against the hand-set `avail`. If a
+player tagged IR/PUP/Out/Doubtful/Sus is still at or above 0.95 availability,
+`proj.py` caps the value and prints the change. A lower, deliberately hand-set
+value is preserved:
 
 ```
-!! LIVE INJURY vs players.py avail -- these are valued as fully healthy:
-   # 77 Alec Pierce            WR  PUP       Ankle              avail=1.0
-   #191 Zach Charbonnet        RB  PUP       Knee - ACL         avail=1.0
+  2 availability caps applied from the live injury feed:
+    Alec Pierce              PUP       avail 1.0 -> 0.35  (set it deliberately in players.py)
+    Zach Charbonnet          PUP       avail 1.0 -> 0.35  (set it deliberately in players.py)
 ```
 
-**Act on every line.** Lower `avail` in `players.py` and rebuild. If the feed is
-wrong, document that judgement and use a value just below 1.00 so the contradiction
-cannot silently reappear.
+**Review every cap.** Set `avail` deliberately in `players.py` for the next build.
+If the feed is wrong, document that judgement and use a value below 0.95 so the
+automatic cap does not override it. Structural and stale-source checks can still
+abort the build before generated files are overwritten.
 
 ---
 
@@ -197,7 +198,7 @@ Only the delta. Don't restate the board.
 - **K and DST are discounted on purpose**, in three layers: `RELIABILITY` scales
   their VOR (K 0.15, DST 0.30), `FLOOR` keeps DST out before pick 145 and K before
   169, and only the top 12 of each are placed there on a stride of 2. Don't
-  "fix" any of it — see CLAUDE.md for the reasoning.
+  "fix" any of it — see AGENTS.md or CLAUDE.md for the reasoning.
 - **Replacement level** is computed endogenously by filling every starting slot in
   the league first. Don't hardcode it.
 - **Removed on purpose:** the betting layer and the "scoring fit" column. Neither
@@ -205,7 +206,7 @@ Only the delta. Don't restate the board.
 
 ## Automatic refresh
 
-`.github/workflows/refresh-board.yml` runs the same validated build every day
+`.github/workflows/refresh-board.yml` ran the same validated build every day
 through **7 September 2026 at 12:40:09 PM PDT**. At and after that exact cutoff,
 scheduled and manual runs are clean no-ops. Before cutoff, it commits only
 `board-data.js` and `rankings.csv`, preserving the rule that automation never

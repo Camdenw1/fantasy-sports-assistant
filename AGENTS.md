@@ -1,5 +1,18 @@
 # Project context
 
+This repository is growing from a 2026 fantasy football draft board into a
+personal, cross-platform fantasy sports dashboard. The intended home screen
+surfaces league actions in one place; lineup changes and bet tracking are future
+capabilities, not features of the current board. `README.md` describes what is
+implemented. `docs/product/` and `prototypes/` contain newer proposals and
+experiments; check Git status before touching them because they may be another
+assistant's unfinished work.
+
+Codex and Claude Code share this repository. Keep `AGENTS.md` and `CLAUDE.md`
+aligned on project rules. Prefer a focused branch per task, and use separate
+worktrees if two tasks overlap. Preserve uncommitted work, review changes, and
+hand off the branch and remaining limitations before the next assistant continues.
+
 Fantasy football draft board with two switchable profiles: Camden's 12-team
 half-PPR Sleeper league and Dad's unusual weekly-bucket league. Camden opens
 `draft-board-2026.html` in a browser during drafts.

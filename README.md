@@ -1,8 +1,19 @@
-# Sleeper draft guide — 2026
+# Fantasy Sports Assistant
 
-A two-profile draft board: the primary 12-team half-PPR Sleeper league, plus an
-alternate view for Dad's unusual weekly-bucket scoring. Both combine public draft
-timing, an expert board, custom projection models, and live injuries.
+A personal hub for fantasy leagues across platforms, with the longer-term goal of
+showing sports bets in the same place. The intended home screen should answer
+what needs attention across leagues, then let Camden reach the relevant lineup,
+waiver, matchup, draft, or bet without opening every app to find it.
+
+**Current state:** the finished, tracked app is a 2026 fantasy football draft
+board. It has a 12-team half-PPR Sleeper profile and a 10-team profile for Dad's
+weekly-bucket league. The multi-league dashboard and league-aware tools are still
+prototypes and product proposals under `prototypes/` and `docs/product/`; they are
+not wired into the board or a deployed app yet. Lineup changes and bet placement
+are not implemented.
+
+The draft board combines public draft timing, an expert board, custom projection
+models, and live injuries.
 
 ```
 draft-board-2026.html   presentation — hand-edited, never overwritten
@@ -11,6 +22,10 @@ rankings.csv            generated — same data, spreadsheet form
 CLAUDE.md               project context for Claude Code
 REFRESH.md              runbook: "Read REFRESH.md and do a full refresh"
 refresh/                inputs + build chain
+docs/product/           proposed product, UX, design, and dashboard behavior
+prototypes/dashboard/   static home-screen mockup with fictional data
+prototypes/draft-board/ league-neutral scoring and settings experiments
+prototypes/start-sit/  read-only Sleeper start/sit experiment
 ```
 
 ## Use
@@ -116,8 +131,9 @@ Full methodology is behind the "How this works" button on the board itself.
 
 ## Refresh schedule
 
-GitHub Actions refreshes and validates the generated data daily. Run one manual
-refresh on Sept 8 as the final human injury/flag review. Draft is Sept 9.
+The GitHub Actions workflow has a hard cutoff of 2026-09-07 19:40:09 UTC. Scheduled
+and manual runs after that instant are clean no-ops. The generated 2026 board is
+therefore an archived draft snapshot, not an in-season data feed.
 
 ## Data sources
 
@@ -162,8 +178,9 @@ IR / PUP / Out / Doubtful / Sus are struck through and **excluded from the value
 panel** — cheap for a reason is not the same as cheap.
 
 The build also cross-checks that feed against the hand-set `avail` in
-`players.py` and refuses to overwrite the board when a serious live status is
-still valued as fully healthy.
+`players.py`. For a feed-confirmed inactive player whose availability is still
+at least 0.95, `proj.py` caps it automatically and prints the change. Lower
+hand-set values are preserved.
 
 Two sources were tried and rejected rather than padding the count. **Sleeper**
 publishes no ADP at all — `search_rank` is search popularity, and their GraphQL has
@@ -179,11 +196,16 @@ hand-written. Coverage is uneven by design: a player unranked by one source show
 `NR` and is simply excluded from that player's average, and Sleeper covers the
 full pool so every player keeps at least one column.
 
-## Built with Claude
+## Working with Claude and Codex
 
-This project is developed with [Claude Code](https://claude.com/claude-code).
-The architecture split that makes it work — generated data in `board-data.js`,
-hand-tuned presentation in `draft-board-2026.html`, never regenerated from a
-template — exists so that Claude can refresh the numbers without touching the
-design, and rework the design without touching the pipeline. `CLAUDE.md` is the
-context file that keeps that boundary intact across sessions.
+`AGENTS.md` (Codex) and `CLAUDE.md` (Claude Code) carry the same project rules.
+Read the current code and Git status at the start of a task; these files preserve
+intent but can lag implementation. Use a focused branch for each change, review
+the diff and tests, then merge it before the other assistant starts a dependent
+change. If work overlaps, use separate worktrees and integrate through Git rather
+than editing the same checkout at once. Keep unfinished files visible in the
+handoff; do not reset or overwrite another assistant's uncommitted work.
+
+The existing board's key boundary is generated data in `board-data.js` versus
+hand-edited presentation in `draft-board-2026.html`. A data refresh must not
+regenerate the HTML. This boundary applies whichever assistant makes the change.

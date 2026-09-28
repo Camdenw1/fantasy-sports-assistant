@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/camdenweber/sleeper-draft-guide/prototypes/draft-board/league_settings.schema.json",
+  "$id": "urn:fantasy-sports-assistant:league-settings:v1",
   "title": "LeagueSettings",
-  "description": "Canonical, platform-neutral league settings. Adapters translate Sleeper scoring_settings, ESPN scoringItems, and CBS scoring rules INTO this shape; the scorer only ever reads this shape. Stat names are the canonical vocabulary in docs/product/draft-board.md section 2.2 (Sleeper snake_case, because it is the richest open vocabulary and the projection feed already speaks it).",
+  "description": "Canonical, platform-neutral league settings. Prototype adapters translate Sleeper scoring_settings and ESPN scoringItems into this shape; CBS mapping is future work. Stat names use the canonical vocabulary described in docs/product/draft-board.md section 2 (Sleeper snake_case, because the projection feed already speaks it).",
   "type": "object",
   "required": ["schema_version", "name", "teams", "roster", "scoring"],
   "additionalProperties": false,

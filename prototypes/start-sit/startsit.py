@@ -34,7 +34,7 @@ import urllib.request
 
 HERE = pathlib.Path(__file__).parent
 CACHE = HERE / ".cache"
-UA = {"User-Agent": "sleeper-draft-guide/start-sit-prototype"}
+UA = {"User-Agent": "fantasy-sports-assistant/start-sit-prototype"}
 SIMS = 4000
 RNG = random.Random(20260925)
 

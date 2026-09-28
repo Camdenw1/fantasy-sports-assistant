@@ -78,7 +78,8 @@ def report(username, league_id, week=None):
     return {"report": data, "freshness": {
         "roster_fetched_at": data["generated_at"],
         "player_list_fetched_at": cache_time,
-        "projections_fetched_at": data["generated_at"],
+        "projections_fetched_at": (data["generated_at"]
+                                   if data["sources"]["projections"] else None),
     }}
 
 

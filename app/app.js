@@ -48,7 +48,8 @@ function needsCaution() {
   const limit = soon ? 2 * 3600000 : 24 * 3600000;
   return !Number.isFinite(injuryAge) || injuryAge > limit ||
     !Number.isFinite(rosterAge) || rosterAge > limit ||
-    state.report.sources.schedule !== "espn scoreboard";
+    state.report.sources.schedule !== "espn scoreboard" ||
+    !!(state.report.sources.projection_gaps || []).length;
 }
 function actionLink(text) {
   if (state.sample) return node("span", "meta", "Historical example · no action");
@@ -127,15 +128,20 @@ function renderHome() {
   main.append(node("h2", "section-head", "What needs attention"));
   if (needsCaution()) main.append(node("div", "notice",
     state.sample ? "Saved week-3 example. This is historical data; no action is current." :
-    "Some inputs are stale or kickoff time is unavailable. Verify in Sleeper before acting."));
+    "Some inputs are stale, missing projections, or have no verified kickoff time. Verify in Sleeper before acting."));
+  const gaps = report.sources.projection_gaps || [];
+  if (gaps.length) main.append(node("p", "meta", "No projected stat line for: " +
+    gaps.map(player => player.name).join(", ") + ". Their estimated points are incomplete."));
   if (!list.length) {
     main.append(add(node("section", "card clear"), node("h3", "", "No lineup change suggested"),
       node("p", "", "This is based on the roster and projections shown below. Recheck injuries before the next kickoff.")));
   } else list.forEach(item => main.append(item));
   main.append(add(node("p", "meta"),
-    document.createTextNode("Source: " + report.sources.projections.join(", ") +
-      " · Injury list: " + age(state.freshness.player_list_fetched_at) +
-      " · Schedule: " + report.sources.schedule)));
+    document.createTextNode("Projection feeds: " +
+      (report.sources.projections.length ? report.sources.projections.join(", ") : "unavailable") +
+      " · Player file downloaded: " + age(state.freshness.player_list_fetched_at) +
+      " · Schedule: " + report.sources.schedule +
+      " · Upstream projection update time is not provided.")));
 }
 function playerCell(player) {
   const cell = node("td");
@@ -180,10 +186,10 @@ function render() {
   const fresh = $("freshness");
   fresh.hidden = false;
   fresh.classList.toggle("warn", needsCaution());
-  fresh.textContent = (state.sample ? "SAVED EXAMPLE · " : "LIVE FETCH · ") +
+  fresh.textContent = (state.sample ? "SAVED EXAMPLE · " : "FETCHED · ") +
     "Roster " + age(state.freshness.roster_fetched_at) +
-    " · Injuries " + age(state.freshness.player_list_fetched_at) +
-    " · Projections " + age(state.freshness.projections_fetched_at);
+    " · Player/injury file " + age(state.freshness.player_list_fetched_at) +
+    " · Projection feed " + age(state.freshness.projections_fetched_at);
   if (state.view === "home") renderHome(); else renderLineup();
 }
 function busy(on) {

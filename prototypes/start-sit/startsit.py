@@ -640,6 +640,10 @@ def run_league(lg, week, me_id, P, sproj, eproj, games, now, schedule_source="es
         projection_sources.append(f"sleeper({company})")
     if eproj:
         projection_sources.append("espn")
+    projection_gaps = [
+        {"id": p["id"], "name": p["name"], "position": p["pos"]}
+        for p in pl.values() if not p["sources"] and p["game_state"] != "bye"
+    ]
     return {
         "schema": "startsit/v1",
         "generated_at": now.isoformat(),
@@ -651,7 +655,8 @@ def run_league(lg, week, me_id, P, sproj, eproj, games, now, schedule_source="es
                  "name": (me_user.get("metadata") or {}).get("team_name") or me_user.get("display_name")},
         "opponent": opp_block,
         "sources": {"projections": projection_sources,
-                    "schedule": schedule_source, "injuries": "sleeper players"},
+                    "schedule": schedule_source, "injuries": "sleeper players",
+                    "projection_gaps": projection_gaps},
         "totals": {"current": round(sum(cur_t) / SIMS, 1), "recommended": round(sum(rec_t) / SIMS, 1)},
         "slots": rows,
         "swaps": swaps,

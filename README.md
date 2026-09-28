@@ -15,6 +15,26 @@ are not implemented.
 The draft board combines public draft timing, an expert board, custom projection
 models, and live injuries.
 
+### First live dashboard slice
+
+Run the local, read-only Sleeper view from this repository:
+
+~~~bash
+python3 app/server.py
+~~~
+
+Open http://127.0.0.1:8765, enter a Sleeper username, choose a league, and
+refresh. Home shows lineup fixes and injury rechecks; Lineup compares current
+and recommended starters. The server runs the existing start/sit engine and
+fetches public Sleeper league data, ESPN public projections and the NFL
+scoreboard. The page does not submit lineup changes. Its saved example is a
+historical injury scenario, clearly labelled as such. The server binds only to
+this computer; keep it running while using the page.
+
+The full Sleeper player dump stays in the gitignored prototype cache. Its
+timestamp and the live roster fetch time are shown in the page. The 2026 draft
+board remains reachable from the local view.
+
 ```
 draft-board-2026.html   presentation — hand-edited, never overwritten
 board-data.js           generated — overwritten every refresh

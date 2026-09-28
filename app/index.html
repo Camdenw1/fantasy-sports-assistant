@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fantasy Sports Assistant · Sleeper</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div>
+        <p class="eyebrow">Fantasy Sports Assistant / First live slice</p>
+        <h1>Know what needs a move.</h1>
+        <p class="intro">One Sleeper league at a time. Your roster, this week's lineup, and a league-scored recommendation.</p>
+      </div>
+      <a class="board-link" href="/draft-board-2026.html" id="board-link">2026 draft board ↗</a>
+    </header>
+
+    <section class="connect" aria-label="Sleeper connection">
+      <form id="connect-form">
+        <label for="username">Sleeper username</label>
+        <div class="connect-row">
+          <input id="username" name="username" autocomplete="username" value="camdenw1" required>
+          <button type="submit">Find leagues</button>
+        </div>
+      </form>
+      <div class="league-control">
+        <label for="league">League</label>
+        <select id="league" disabled><option>Find leagues first</option></select>
+      </div>
+      <button id="refresh" disabled>Refresh lineup</button>
+      <button id="sample" class="quiet">View saved example</button>
+    </section>
+
+    <div id="status" class="status" role="status" aria-live="polite">Connect a Sleeper username to begin. This local app only reads league data.</div>
+    <div id="freshness" class="freshness" hidden></div>
+    <nav class="tabs" aria-label="Views">
+      <button id="home-tab" class="active" aria-pressed="true">Home</button>
+      <button id="lineup-tab" aria-pressed="false">Lineup</button>
+    </nav>
+    <main id="content">
+      <section class="empty">
+        <h2>Start with one league</h2>
+        <p>Find your Sleeper leagues, then choose one to see the current lineup and what the model recommends. The saved example shows an injured-starter case without a live fetch.</p>
+      </section>
+    </main>
+    <footer>Read-only preview. Use the Sleeper link to make any changes. Refresh when you return to confirm the lineup.</footer>
+  </div>
+</body>
+</html>

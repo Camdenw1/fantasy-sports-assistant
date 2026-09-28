@@ -45,9 +45,9 @@ Sleeper player IDs are the internal join key. ESPN IDs on the Sleeper player
 object join the second projection; normalized name plus position is a fallback.
 Reserve and taxi players are excluded. A past week's starter who has since
 left the roster is retained for historical comparison. The player dump is
-cached on disk for 12 hours in a gitignored directory; the research spec notes
-Sleeper asks callers to fetch the full dump at most once a day, so production
-must lengthen that policy or consume a slim shared file.
+cached on disk for 24 hours in a gitignored directory, following the research
+spec's note that Sleeper asks callers to fetch the full dump at most once a day.
+Production may instead consume a slim shared file.
 
 The saved normal fixture has no swaps; the Out what-if fixture recommends one
 swap and improves projected total from 110.7 to 119.2. These fixtures show

@@ -62,7 +62,7 @@ def sleeper_players():
     # hash() is salted per process, so use a fixed filename for this one.
     CACHE.mkdir(exist_ok=True)
     f = CACHE / "players_nfl.json"
-    if f.exists() and time.time() - f.stat().st_mtime < 12 * 3600:
+    if f.exists() and time.time() - f.stat().st_mtime < 24 * 3600:
         return json.loads(f.read_text())
     d = get(f"{SL}/players/nfl", timeout=120)
     f.write_text(json.dumps(d))
@@ -148,16 +148,17 @@ def schedule(season, week):
                              "total": odds.get("overUnder"), "line": odds.get("details")}
     except Exception as ex:  # noqa: BLE001
         print(f"  ! ESPN scoreboard unavailable ({ex}); using Sleeper schedule", file=sys.stderr)
+    source = "espn scoreboard"
     if not games:
+        source = "sleeper schedule (kickoff unavailable)"
         for g in get(f"https://api.sleeper.app/schedule/nfl/regular/{season}"):
             if g["week"] != week:
                 continue
             st = {"pre_game": "pre", "in_game": "in", "complete": "post"}.get(g["status"], "pre")
-            ko = dt.datetime.fromisoformat(g["date"] + "T17:00:00+00:00")
             for tm, op, h in ((g["home"], g["away"], True), (g["away"], g["home"], False)):
-                games[tm] = {"kickoff": ko, "state": st, "opp": op, "home": h,
+                games[tm] = {"kickoff": None, "state": st, "opp": op, "home": h,
                              "total": None, "line": None}
-    return games
+    return games, source
 
 
 def implied_total(g, team):
@@ -374,7 +375,7 @@ def flexibility(slot):
 
 
 # ------------------------------------------------------------------- build --
-def run_league(lg, week, me_id, P, sproj, eproj, games, now):
+def run_league(lg, week, me_id, P, sproj, eproj, games, now, schedule_source="espn scoreboard"):
     S = lg["scoring_settings"]
     lid = lg["league_id"]
     all_slots = lg["roster_positions"]
@@ -633,6 +634,12 @@ def run_league(lg, week, me_id, P, sproj, eproj, games, now):
                      "projected": round(sum(ot) / SIMS, 1), "points_so_far": opp.get("points"),
                      "win_prob_current": wp(cur_t), "win_prob_recommended": wp(rec_t)}
     me_user = users.get(me_id, {})
+    projection_sources = []
+    if sproj:
+        company = next(iter(sproj.values())).get("company") or "?"
+        projection_sources.append(f"sleeper({company})")
+    if eproj:
+        projection_sources.append("espn")
     return {
         "schema": "startsit/v1",
         "generated_at": now.isoformat(),
@@ -643,8 +650,8 @@ def run_league(lg, week, me_id, P, sproj, eproj, games, now):
         "team": {"roster_id": mine["roster_id"],
                  "name": (me_user.get("metadata") or {}).get("team_name") or me_user.get("display_name")},
         "opponent": opp_block,
-        "sources": {"projections": ["sleeper(" + (next(iter(sproj.values()))["company"] or "?") + ")", "espn"],
-                    "schedule": "espn scoreboard", "injuries": "sleeper players"},
+        "sources": {"projections": projection_sources,
+                    "schedule": schedule_source, "injuries": "sleeper players"},
         "totals": {"current": round(sum(cur_t) / SIMS, 1), "recommended": round(sum(rec_t) / SIMS, 1)},
         "slots": rows,
         "swaps": swaps,
@@ -720,12 +727,13 @@ def main():
         except Exception as ex:  # noqa: BLE001
             print(f"  ! ESPN projections unavailable ({ex}); Sleeper only", file=sys.stderr)
     print(f"  projections: sleeper {len(sproj)}, espn {sum(isinstance(k, str) for k in eproj)}", file=sys.stderr)
-    games = schedule(season, week)
+    games, schedule_source = schedule(season, week)
     outs = []
     for lg in leagues:
         if lg.get("status") not in ("in_season", "post_season", "drafting", "pre_draft", "complete"):
             continue
-        o = run_league(lg, week, user["user_id"], P, sproj, eproj, games, now)
+        o = run_league(lg, week, user["user_id"], P, sproj, eproj, games, now,
+                       schedule_source)
         if o:
             outs.append(o)
             print_table(o)

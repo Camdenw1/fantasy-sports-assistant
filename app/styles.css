@@ -25,6 +25,15 @@ a { color: var(--accent); }
 .board-link { white-space: nowrap; font-size: 13px; margin-top: 3px; }
 .connect { display: flex; align-items: end; gap: 12px; flex-wrap: wrap;
   padding: 18px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; }
+.manual-import { margin-top: 12px; padding: 15px 18px; background: var(--paper);
+  border: 1px solid var(--line); border-radius: 10px; }
+.manual-import summary { cursor: pointer; font-weight: 700; }
+.manual-import p { margin: 12px 0; }
+.manual-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px 14px; }
+.manual-import textarea { width: 100%; padding: 10px; resize: vertical; color: var(--ink);
+  background: var(--paper); border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+.manual-buttons { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.text-button { background: transparent; color: var(--muted); border-color: transparent; }
 .connect form, .league-control { min-width: 180px; }
 .connect form { flex: 1 1 290px; }
 .league-control { flex: 1 1 230px; }
@@ -52,9 +61,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .empty, .card { background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
   padding: 20px; margin-bottom: 12px; }
 .empty p { color: var(--muted); margin-bottom: 0; }
-.summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
+.summary, .league-strip { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
   gap: 10px; margin-bottom: 18px; }
-.summary .card { margin: 0; }
+.summary .card, .league-strip .card { margin: 0; }
+.league-card .pill { margin-bottom: 10px; }
+.league-card p { min-height: 36px; }
+.league-card button { margin-right: 6px; }
 .metric { display: block; font-size: 26px; font-weight: 750; line-height: 1.15; }
 .caption { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
 .section-head { margin: 20px 0 10px; }
@@ -88,6 +100,7 @@ footer { margin-top: 26px; color: var(--muted); font-size: 12px; }
   .board-link { display: inline-block; margin-bottom: 18px; }
   .connect { padding: 13px; }
   .connect form, .league-control { flex-basis: 100%; }
+  .manual-fields { grid-template-columns: 1fr; }
   .lineup-table th:nth-child(4), .lineup-table td:nth-child(4) { display: none; }
   .lineup-table th, .lineup-table td { padding: 10px 6px; font-size: 13px; }
 }

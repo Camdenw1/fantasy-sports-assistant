@@ -51,17 +51,18 @@ def discover(username):
     }
 
 
-def report(username, league_id, week=None):
+def report(username, league_id=None, week=None):
     if not USERNAME.fullmatch(username):
         raise ValueError("Invalid Sleeper username.")
-    if not LEAGUE_ID.fullmatch(league_id):
+    if league_id is not None and not LEAGUE_ID.fullmatch(league_id):
         raise ValueError("Invalid Sleeper league ID.")
     if week is not None and (not isinstance(week, int) or not 1 <= week <= 18):
         raise ValueError("Week must be between 1 and 18.")
     with tempfile.TemporaryDirectory(prefix="fantasy-lineup-") as temp:
         output = pathlib.Path(temp) / "report.json"
-        cmd = [sys.executable, str(ENGINE), username, "--league", league_id,
-               "--json", str(output)]
+        cmd = [sys.executable, str(ENGINE), username, "--json", str(output)]
+        if league_id is not None:
+            cmd += ["--league", league_id]
         if week is not None:
             cmd += ["--week", str(week)]
         result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=180)
@@ -69,17 +70,19 @@ def report(username, league_id, week=None):
             detail = (result.stderr or result.stdout).strip().splitlines()
             raise RuntimeError(detail[-1] if detail else "Start/sit data unavailable.")
         data = json.loads(output.read_text())
-    if isinstance(data, list):
+    reports = data if isinstance(data, list) else [data]
+    if league_id is not None and (len(reports) != 1 or
+                                  str(reports[0]["league"]["id"]) != league_id):
         raise ValueError("No roster found for this username in that league.")
-    if str(data["league"]["id"]) != league_id:
-        raise RuntimeError("Sleeper returned a different league.")
+    if not reports:
+        raise ValueError("No current Sleeper roster found for this username.")
     cache_time = (dt.datetime.fromtimestamp(PLAYER_CACHE.stat().st_mtime, dt.timezone.utc)
                   .isoformat() if PLAYER_CACHE.exists() else None)
-    return {"report": data, "freshness": {
-        "roster_fetched_at": data["generated_at"],
+    return {"reports": reports, "freshness": {
+        "roster_fetched_at": reports[0]["generated_at"],
         "player_list_fetched_at": cache_time,
-        "projections_fetched_at": (data["generated_at"]
-                                   if data["sources"]["projections"] else None),
+        "projections_fetched_at": (reports[0]["generated_at"]
+                                   if reports[0]["sources"]["projections"] else None),
     }}
 
 
@@ -128,7 +131,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
-        if urlparse(self.path).path != "/api/lineup":
+        if urlparse(self.path).path not in {"/api/lineup", "/api/lineups"}:
             self.send_error(404)
             return
         try:
@@ -136,8 +139,12 @@ class Handler(BaseHTTPRequestHandler):
             if not 0 < size <= 1024:
                 raise ValueError("Invalid request size.")
             payload = json.loads(self.rfile.read(size))
-            self.reply(200, report(payload.get("username", ""),
-                                   str(payload.get("league_id", "")), payload.get("week")))
+            league_id = (str(payload.get("league_id", ""))
+                         if urlparse(self.path).path == "/api/lineup" else None)
+            result = report(payload.get("username", ""), league_id, payload.get("week"))
+            if league_id is not None:
+                result["report"] = result["reports"][0]
+            self.reply(200, result)
         except (ValueError, json.JSONDecodeError) as exc:
             self.reply(400, {"error": str(exc)})
         except subprocess.TimeoutExpired:

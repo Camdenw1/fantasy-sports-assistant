@@ -5,35 +5,44 @@ showing sports bets in the same place. The intended home screen should answer
 what needs attention across leagues, then let Camden reach the relevant lineup,
 waiver, matchup, draft, or bet without opening every app to find it.
 
-**Current state:** the finished, tracked app is a 2026 fantasy football draft
-board. It has a 12-team half-PPR Sleeper profile and a 10-team profile for Dad's
-weekly-bucket league. The multi-league dashboard and league-aware tools are still
-prototypes and product proposals under `prototypes/` and `docs/product/`; they are
-not wired into the board or a deployed app yet. Lineup changes and bet placement
-are not implemented.
+**Current state:** the 2026 draft board has Sleeper and Dad league profiles.
+The local dashboard can read all fantasy leagues returned for a Sleeper username
+and show manual ESPN/CBS league snapshots in one Home view. The broader product
+plans remain under `docs/product/`. Lineup changes and bet placement are not
+implemented.
 
 The draft board combines public draft timing, an expert board, custom projection
 models, and live injuries.
 
 ### First live dashboard slice
 
-Run the local, read-only Sleeper view from this repository:
+Run the local, read-only dashboard from this repository:
 
 ~~~bash
 python3 app/server.py
 ~~~
 
-Open http://127.0.0.1:8765, enter a Sleeper username, choose a league, and
-refresh. Home shows lineup fixes and injury rechecks; Lineup compares current
-and recommended starters. The server runs the existing start/sit engine and
+Open http://127.0.0.1:8765 and enter a Sleeper username. Home loads every
+discovered Sleeper fantasy league and combines lineup fixes and injury rechecks.
+Choose a league to compare current and recommended starters. Add ESPN or CBS
+through **Add ESPN, CBS, or another league manually**: enter a name, platform,
+scoring summary, week, and starters in `slot | player | status` format. These
+snapshots are saved only in this browser and must be updated after roster or
+injury changes. They flag obvious lineup needs but do not calculate start/sit
+swaps. Sleeper Pick'em can be listed separately as a manual entry; the Sleeper
+fantasy API does not populate its picks here.
+
+The server runs the existing start/sit engine and
 fetches public Sleeper league data, ESPN public projections and the NFL
 scoreboard. The page does not submit lineup changes. Its saved example is a
 historical injury scenario, clearly labelled as such. The server binds only to
 this computer; keep it running while using the page.
 
 The full Sleeper player dump stays in the gitignored prototype cache. Its
-timestamp and the live roster fetch time are shown in the page. The 2026 draft
-board remains reachable from the local view.
+timestamp and the live roster fetch time are shown in the page. Missing
+projections and stale injury data are flagged; missing roster projections
+withhold the projected totals and prevent confident upgrade cards. The 2026
+draft board remains reachable from the local view.
 
 ```
 draft-board-2026.html   presentation — hand-edited, never overwritten

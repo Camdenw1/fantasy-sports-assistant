@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Fantasy Sports Assistant · Sleeper</title>
+  <title>Fantasy Sports Assistant · Home</title>
   <link rel="stylesheet" href="/styles.css">
   <script src="/app.js" defer></script>
 </head>
@@ -11,9 +11,9 @@
   <div class="shell">
     <header>
       <div>
-        <p class="eyebrow">Fantasy Sports Assistant / First live slice</p>
+        <p class="eyebrow">Fantasy Sports Assistant / Your leagues</p>
         <h1>Know what needs a move.</h1>
-        <p class="intro">One Sleeper league at a time. Your roster, this week's lineup, and a league-scored recommendation.</p>
+        <p class="intro">See lineup needs across your Sleeper leagues and saved snapshots from other platforms.</p>
       </div>
       <a class="board-link" href="/draft-board-2026.html" id="board-link">2026 draft board ↗</a>
     </header>
@@ -27,14 +27,30 @@
         </div>
       </form>
       <div class="league-control">
-        <label for="league">League</label>
+        <label for="league">Lineup detail</label>
         <select id="league" disabled><option>Find leagues first</option></select>
       </div>
-      <button id="refresh" disabled>Refresh lineup</button>
+      <button id="refresh" disabled>Refresh Sleeper</button>
       <button id="sample" class="quiet">View saved example</button>
     </section>
 
-    <div id="status" class="status" role="status" aria-live="polite">Connect a Sleeper username to begin. This local app only reads league data.</div>
+    <details class="manual-import" id="manual-import">
+      <summary>Add ESPN, CBS, or another league manually</summary>
+      <p class="meta">Saved only in this browser. Enter one starter per line as <strong>slot | player | status</strong>. Status can be Active, Questionable, Doubtful, Out, IR, Bye, or Empty. This snapshot can flag lineup holes but cannot calculate a start/sit swap.</p>
+      <form id="manual-form">
+        <div class="manual-fields">
+          <label>League name<input id="manual-name" required maxlength="80" placeholder="Dad's league"></label>
+          <label>Platform<select id="manual-platform"><option>ESPN</option><option>CBS</option><option>Other</option><option>Sleeper Pick’em</option></select></label>
+          <label>Scoring summary<input id="manual-scoring" maxlength="160" placeholder="e.g. weekly buckets, 10 teams"></label>
+          <label>Week<input id="manual-week" type="number" min="1" max="18" required></label>
+        </div>
+        <label for="manual-starters">Starting lineup</label>
+        <textarea id="manual-starters" rows="8" required placeholder="QB | Josh Allen | Active&#10;RB | Christian McCaffrey | Questionable&#10;WR | Empty | Empty"></textarea>
+        <div class="manual-buttons"><button type="submit">Save snapshot</button><button type="button" id="manual-cancel" class="quiet">Cancel edit</button></div>
+      </form>
+    </details>
+
+    <div id="status" class="status" role="status" aria-live="polite">Connect Sleeper or add a manual league to begin.</div>
     <div id="freshness" class="freshness" hidden></div>
     <nav class="tabs" aria-label="Views">
       <button id="home-tab" class="active" aria-pressed="true">Home</button>
@@ -42,11 +58,11 @@
     </nav>
     <main id="content">
       <section class="empty">
-        <h2>Start with one league</h2>
-        <p>Find your Sleeper leagues, then choose one to see the current lineup and what the model recommends. The saved example shows an injured-starter case without a live fetch.</p>
+        <h2>Add your leagues</h2>
+        <p>Find your Sleeper leagues for live reads. Add ESPN or CBS as a manual snapshot until a reliable connection is available.</p>
       </section>
     </main>
-    <footer>Read-only preview. Use the Sleeper link to make any changes. Refresh when you return to confirm the lineup.</footer>
+    <footer>Read-only dashboard. Make lineup changes in each platform, then refresh the dashboard. Manual snapshots stay in this browser and need a new paste after roster changes.</footer>
   </div>
 </body>
 </html>

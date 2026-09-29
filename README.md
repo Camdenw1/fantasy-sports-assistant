@@ -7,12 +7,14 @@ waiver, matchup, draft, or bet without opening every app to find it.
 
 **Current state:** the 2026 draft board has Sleeper and Dad league profiles.
 The local dashboard can read all fantasy leagues returned for a Sleeper username
-and show manual ESPN/CBS league snapshots in one Home view. The broader product
+and show ESPN/CBS league snapshots in one Home view. The redesigned workspace
+has separate Home, Leagues, and Lineup screens, plus a refreshed draft archive. The broader product
 plans remain under `docs/product/`. Lineup changes and bet placement are not
 implemented.
 
 The draft board combines public draft timing, an expert board, custom projection
-models, and live injuries.
+models, and injury context captured at the September 7 cutoff. It is a preseason
+archive, not a current rest-of-season ranking.
 
 ### First live dashboard slice
 
@@ -24,13 +26,26 @@ python3 app/server.py
 
 Open http://127.0.0.1:8765 and enter a Sleeper username. Home loads every
 discovered Sleeper fantasy league and combines lineup fixes and injury rechecks.
-Choose a league to compare current and recommended starters. Add ESPN or CBS
-through **Add ESPN, CBS, or another league manually**: enter a name, platform,
-scoring summary, week, and starters in `slot | player | status` format. These
-snapshots are saved only in this browser and must be updated after roster or
+Choose a league to compare current and recommended starters. **Leagues** contains
+platform setup and imports:
+
+- **Sleeper:** discovered fantasy leagues refresh together. After a successful read,
+  the browser retains the last lineup report with its original timestamps, so a
+  failed refresh does not leave Home empty. Stale and incomplete inputs stay flagged.
+- **ESPN:** paste a public football league/team URL and choose your team number.
+  The local server reads roster, team, and settings views without credentials.
+  Review the imported roster and week before saving a snapshot. This adapter is
+  tested with fixtures; Camden's actual ESPN URL is still needed for validation.
+- **CBS / private ESPN:** copy a roster table with labelled Slot/Pos, Player, and
+  Status columns, or paste `slot | player | status` rows. Preview before saving.
+  Missing statuses remain Unknown. BN/BE/Bench/IR/Reserve slots are excluded from
+  starter alerts. Actual CBS page layout still needs validation from a supplied URL.
+- **Sleeper Pick'em:** can be listed as a snapshot; its picks do not populate here.
+
+Snapshots are saved only in this browser and must be updated after roster or
 injury changes. They flag obvious lineup needs but do not calculate start/sit
-swaps. Sleeper Pick'em can be listed separately as a manual entry; the Sleeper
-fantasy API does not populate its picks here.
+swaps. Imported ESPN snapshots also do not refresh automatically yet. Saved
+snapshots from a different week are flagged and excluded from Home's action cards.
 
 The server runs the existing start/sit engine and
 fetches public Sleeper league data, ESPN public projections and the NFL
@@ -61,7 +76,7 @@ prototypes/start-sit/  read-only Sleeper start/sit experiment
 
 Open `draft-board-2026.html` in any browser. Tap a row to cross a player off, or
 hit the **+** next to a name to put him on your own team. State persists in
-localStorage, so closing the tab mid-draft is safe; "Reset board" clears it.
+localStorage, so closing the tab mid-draft is safe; **Draft sync & settings → Reset draft picks** clears it after confirmation.
 Filter by position to switch the tier bands from overall to positional.
 
 Use **Rank for → Sleeper league / Dad's league** at the top to switch scoring and
@@ -238,3 +253,13 @@ handoff; do not reset or overwrite another assistant's uncommitted work.
 The existing board's key boundary is generated data in `board-data.js` versus
 hand-edited presentation in `draft-board-2026.html`. A data refresh must not
 regenerate the HTML. This boundary applies whichever assistant makes the change.
+
+## Current iteration and checks
+
+See [the September 29 handoff](docs/product/iteration-2026-09-29.md) for the
+redesign, import progress, source review, and next player-ranking milestone.
+
+~~~bash
+python3 -m unittest discover -s app/tests
+node app/tests/roster-import.test.js
+~~~

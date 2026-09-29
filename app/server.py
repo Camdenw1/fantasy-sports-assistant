@@ -12,6 +12,7 @@ import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
+from espn import import_league
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -98,6 +99,19 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/api/espn":
+            try:
+                query = parse_qs(parsed.query)
+                self.reply(200, import_league(query.get("url", [""])[0],
+                                             query.get("team_id", [None])[0], fetch_json))
+            except ValueError as exc:
+                self.reply(400, {"error": str(exc)})
+            except urllib.error.HTTPError as exc:
+                self.reply(502, {"error": "ESPN did not allow a public roster read. Open your team page and import a roster snapshot instead."
+                                if exc.code in (401, 403, 404) else "ESPN is unavailable. Try again later."})
+            except Exception:
+                self.reply(502, {"error": "ESPN roster could not be read. Use a roster snapshot while this connection is unavailable."})
+            return
         if parsed.path == "/api/leagues":
             try:
                 self.reply(200, discover(parse_qs(parsed.query).get("username", [""])[0]))

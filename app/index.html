@@ -3,66 +3,68 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Fantasy Sports Assistant · Home</title>
+  <title>Fantasy Sports Assistant</title>
   <link rel="stylesheet" href="/styles.css">
+  <script src="/roster-import.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
-  <div class="shell">
-    <header>
-      <div>
-        <p class="eyebrow">Fantasy Sports Assistant / Your leagues</p>
-        <h1>Know what needs a move.</h1>
-        <p class="intro">See lineup needs across your Sleeper leagues and saved snapshots from other platforms.</p>
+  <div class="app-frame">
+    <aside class="sidebar">
+      <a class="brand" href="#home"><span class="brand-mark" aria-hidden="true">F</span><span>Fantasy Sports<small>Your season, together.</small></span></a>
+      <nav class="navigation" aria-label="Main navigation">
+        <button id="home-tab" class="active" aria-pressed="true"><span aria-hidden="true">⌂</span>Home</button>
+        <button id="leagues-tab" aria-pressed="false"><span aria-hidden="true">▤</span>Leagues</button>
+        <button id="lineup-tab" aria-pressed="false"><span aria-hidden="true">≡</span>Lineup</button>
+        <a href="/draft-board-2026.html" id="board-link"><span aria-hidden="true">▦</span>Draft board<span class="nav-note">2026</span></a>
+      </nav>
+      <div class="sidebar-bottom"><span class="local-dot"></span>Personal workspace<small>Saved on this device</small></div>
+    </aside>
+    <div class="workspace">
+      <header class="page-header">
+        <div><p class="eyebrow" id="season-context">Football · 2026 season</p><h1 id="page-title">Your week, in view.</h1><p class="intro" id="page-description">The lineup decisions that deserve your attention.</p></div>
+        <div class="header-actions"><button id="manage-leagues" class="quiet">Add league</button><button id="refresh" disabled>↻ Refresh</button></div>
+      </header>
+      <div class="context-bar">
+        <label class="inline-label" for="week">Week<select id="week"><option value="">Current</option></select></label>
+        <div class="league-control" id="lineup-selector" hidden><label for="league" class="sr-only">League for lineup</label><select id="league" disabled><option>Add a league first</option></select></div>
+        <span id="status" class="status" role="status" aria-live="polite">Connecting to your leagues…</span>
       </div>
-      <a class="board-link" href="/draft-board-2026.html" id="board-link">2026 draft board ↗</a>
-    </header>
-
-    <section class="connect" aria-label="Sleeper connection">
-      <form id="connect-form">
-        <label for="username">Sleeper username</label>
-        <div class="connect-row">
-          <input id="username" name="username" autocomplete="username" value="camdenw1" required>
-          <button type="submit">Find leagues</button>
+      <div id="freshness" class="freshness" hidden></div>
+      <main id="content"></main>
+      <section id="connections-view" hidden aria-label="Connect leagues">
+        <div class="connection-grid">
+          <section class="connect card">
+            <span class="platform-icon">S</span><h2>Connect Sleeper</h2><p>Your fantasy leagues and lineups update together.</p>
+            <form id="connect-form"><label for="username">Username</label><div class="connect-row"><input id="username" name="username" autocomplete="username" value="camdenw1" required><button type="submit">Connect</button></div></form>
+            <p class="meta">Sleeper Pick’em needs a separate connection.</p>
+          </section>
+          <section class="card import-card">
+            <span class="platform-icon neutral">↗</span><h2>Connect ESPN or CBS</h2><p>Import a public ESPN league by URL, or bring a roster over from a league page.</p>
+            <form id="espn-form"><label for="espn-url">ESPN team or league URL</label><input id="espn-url" type="url" placeholder="https://fantasy.espn.com/football/team?…" required><div class="connect-row"><label for="espn-team">Team number<input id="espn-team" type="number" min="1" max="100" placeholder="From team URL"></label><button type="submit" id="espn-connect">Import ESPN</button></div></form>
+            <p id="espn-status" class="meta" role="status">Private leagues can use a roster snapshot below.</p>
+          </section>
         </div>
-      </form>
-      <div class="league-control">
-        <label for="league">Lineup detail</label>
-        <select id="league" disabled><option>Find leagues first</option></select>
-      </div>
-      <button id="refresh" disabled>Refresh Sleeper</button>
-      <button id="sample" class="quiet">View saved example</button>
-    </section>
-
-    <details class="manual-import" id="manual-import">
-      <summary>Add ESPN, CBS, or another league manually</summary>
-      <p class="meta">Saved only in this browser. Enter one starter per line as <strong>slot | player | status</strong>. Status can be Active, Questionable, Doubtful, Out, IR, Bye, or Empty. This snapshot can flag lineup holes but cannot calculate a start/sit swap.</p>
-      <form id="manual-form">
-        <div class="manual-fields">
-          <label>League name<input id="manual-name" required maxlength="80" placeholder="Dad's league"></label>
-          <label>Platform<select id="manual-platform"><option>ESPN</option><option>CBS</option><option>Other</option><option>Sleeper Pick’em</option></select></label>
-          <label>Scoring summary<input id="manual-scoring" maxlength="160" placeholder="e.g. weekly buckets, 10 teams"></label>
-          <label>Week<input id="manual-week" type="number" min="1" max="18" required></label>
-        </div>
-        <label for="manual-starters">Starting lineup</label>
-        <textarea id="manual-starters" rows="8" required placeholder="QB | Josh Allen | Active&#10;RB | Christian McCaffrey | Questionable&#10;WR | Empty | Empty"></textarea>
-        <div class="manual-buttons"><button type="submit">Save snapshot</button><button type="button" id="manual-cancel" class="quiet">Cancel edit</button></div>
-      </form>
-    </details>
-
-    <div id="status" class="status" role="status" aria-live="polite">Connect Sleeper or add a manual league to begin.</div>
-    <div id="freshness" class="freshness" hidden></div>
-    <nav class="tabs" aria-label="Views">
-      <button id="home-tab" class="active" aria-pressed="true">Home</button>
-      <button id="lineup-tab" aria-pressed="false">Lineup</button>
-    </nav>
-    <main id="content">
-      <section class="empty">
-        <h2>Add your leagues</h2>
-        <p>Find your Sleeper leagues for live reads. Add ESPN or CBS as a manual snapshot until a reliable connection is available.</p>
+        <details class="manual-import card" id="manual-import">
+          <summary>Import or update a roster snapshot<span>ESPN · CBS · Other</span></summary>
+          <p class="meta">Paste starter rows as <strong>slot | player | status</strong>, or a table with Slot, Player, and Status columns copied from a league page. Review the preview before saving. Snapshots stay in this browser.</p>
+          <form id="manual-form">
+            <div class="manual-fields">
+              <label>League name<input id="manual-name" required maxlength="80" placeholder="League name"></label>
+              <label>Platform<select id="manual-platform"><option>ESPN</option><option>CBS</option><option>Other</option><option>Sleeper Pick’em</option></select></label>
+              <label>Scoring summary<input id="manual-scoring" maxlength="160" placeholder="e.g. half PPR, 12 teams"></label>
+              <label>Snapshot week<input id="manual-week" type="number" min="1" max="18" required></label>
+              <label class="full-width">League page URL <span class="optional">optional</span><input id="manual-url" type="url" placeholder="https://…"></label>
+            </div>
+            <label for="manual-starters">Roster from league page</label><textarea id="manual-starters" rows="6" required placeholder="QB | Josh Allen | Active&#10;RB | Christian McCaffrey | Questionable&#10;WR | Empty | Empty"></textarea>
+            <div id="import-preview" class="import-preview" hidden></div>
+            <div class="manual-buttons"><button type="button" id="preview-import" class="quiet">Preview roster</button><button type="submit">Save snapshot</button><button type="button" id="manual-cancel" class="text-button">Cancel</button></div>
+          </form>
+        </details>
+        <div class="sample-option"><span>Want to explore without connecting?</span><button id="sample" class="text-button">View a saved injury example →</button></div>
       </section>
-    </main>
-    <footer>Read-only dashboard. Make lineup changes in each platform, then refresh the dashboard. Manual snapshots stay in this browser and need a new paste after roster changes.</footer>
+      <footer>Recommendations are estimates. Make changes in your league’s app, then refresh to confirm.</footer>
+    </div>
   </div>
 </body>
 </html>

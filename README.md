@@ -295,3 +295,20 @@ requires backtesting.
 
 Design reference and project choices: [design brief](docs/product/design-brief.md).
 Verification and handoff: [reliability iteration](docs/product/iteration-2026-09-30.md).
+
+### Current rest-of-season player view
+
+Open **Players** in the dashboard, or `http://127.0.0.1:8765/players.html`.
+This uses current Sleeper/RotoWire weekly half-PPR projections, summed for the
+remaining **full weeks through Week 17**. It excludes the current week and ranks
+RB/WR/TE together by default, with separate position filters. It is a projection
+ranking, not expert consensus, trade values, or a custom-league scoring model.
+The number of projected games and provider/read dates are shown; missing player
+weeks are not extrapolated. Projection reads happen in the background, are
+shared between requests, and retain the last complete snapshot during failure.
+Every remaining week must provide at least 150 real skill-player projection rows;
+ADP-only placeholders are rejected. API endpoints are undocumented and may change.
+The frozen September 7 draft board remains accessible through the archive link.
+
+The project’s subtle crimson accents now follow [NFL Shield Red](https://designplaybook.nfl.com/color)
+(`#D50A0A`): selected navigation, position tabs, buttons, and small context marks.

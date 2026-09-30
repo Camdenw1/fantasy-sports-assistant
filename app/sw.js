@@ -1,8 +1,8 @@
 /* Keep the interface available when the local server or internet is unavailable.
    API responses are deliberately excluded: the app owns dated roster snapshots. */
-const CACHE = 'fantasy-workspace-red-v1';
+const CACHE = 'fantasy-workspace-crimson-v2';
 const SHELL = ['/', '/index.html', '/styles.css', '/app.js', '/roster-import.js',
-  '/draft-board-2026.html', '/board-data.js'];
+  '/players.html', '/season.js', '/draft-board-2026.html', '/board-data.js'];
 const LOGOS = 'ari atl bal buf car chi cin cle dal den det gb hou ind jax kc lac lar lv mia min ne no nyg nyj phi pit sea sf tb ten wsh'.split(' ').map(team => '/assets/teams/' + team + '.png');
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(async cache => { await cache.addAll(SHELL); await Promise.allSettled(LOGOS.map(url => cache.add(url))); }).then(() => self.skipWaiting()));

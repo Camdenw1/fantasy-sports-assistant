@@ -245,3 +245,13 @@ Missing roster projections withhold totals and suggested lineup columns.
 install/uninstall are documented in README. It binds only to localhost. Preserve
 its availability when updating the running server, and verify failure/recovery
 paths when modifying refresh logic. Generated draft data remains frozen.
+
+## Current season player view
+
+`app/players.html`, `app/season.js`, and `app/season.py` implement ROS projection
+rankings from current Sleeper weekly data. Keep this independent from the frozen
+draft pipeline. Standard half-PPR, remaining full weeks through Week 17, current
+week excluded, skill positions only. No claimed expert consensus, trade values,
+or custom scoring. Preserve source dates and complete-week coverage checks;
+placeholder ADP rows are not projections. NFL Shield Red (#D50A0A) is the subtle
+project accent, with a white/charcoal canvas.

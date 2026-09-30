@@ -4,7 +4,7 @@ Personal reference: `/Users/camdenweber/Documents/Second Brain/Design/Personal W
 
 - Priority: dependable everyday use, then clear information, then visual character.
 - Identity: a personal fantasy scorecard; white surfaces, neutral charcoal text,
-  restrained weathered red (`#A13F43`) and pale red selected fills (`#F8EDED`).
+  NFL Shield crimson (`#D50A0A`) and pale red selected fills (`#FFF1F1`).
 - Type: sturdy Georgia page headings; system sans-serif for controls, players,
   explanations, and tabular numbers. Balanced spacing, not compressed rows.
 - Motif: official team marks beside player names. Assets are local, have fixed
@@ -18,8 +18,8 @@ Personal reference: `/Users/camdenweber/Documents/Second Brain/Design/Personal W
   per request key, source dates preserved, persistent local service, offline shell.
 - Missing inputs: make uncertainty explicit and withhold projected totals and
   suggested lineup columns when roster projections are incomplete.
-- Season boundary: September 7 draft data is an archive. A future season mode
-  requires independently sourced current rankings; draft values are not ROS values.
+- Season boundary: Players opens current remaining-week projections from Sleeper.
+  September 7 draft data stays in a separate archive; draft values are not ROS values.
 
 User priorities are above defaults in the global reference. The red treatment is
 project-specific and does not change the user's general preferred palette.

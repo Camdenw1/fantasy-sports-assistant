@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fantasy Sports · Rest of season</title>
+<link rel="stylesheet" href="/styles.css"><script src="/season.js" defer></script>
+</head>
+<body><div class="app-frame">
+<aside class="sidebar"><a class="brand" href="/#home"><span class="brand-mark" aria-hidden="true">F</span><span>Fantasy Sports</span></a>
+<nav class="navigation" aria-label="Main navigation"><a href="/#home">Home</a><a href="/#leagues">Leagues</a><a href="/#lineup">Lineup</a><a class="active" href="/players.html" aria-current="page">Players</a></nav></aside>
+<div class="workspace season-workspace">
+<header class="page-header"><div><p class="eyebrow" id="season-label">Football · Remaining season</p><h1>Rest of season</h1></div><button id="season-refresh">Refresh</button></header>
+<main>
+<div class="season-context"><span>Half PPR · Projected points</span><span id="season-status" role="status" aria-live="polite">Loading current projections…</span></div>
+<div class="season-toolbar"><div class="season-filters" role="group" aria-label="Player positions"><button class="quiet" data-position="FLEX" aria-pressed="true">Flex</button><button class="quiet" data-position="QB" aria-pressed="false">QB</button><button class="quiet" data-position="RB" aria-pressed="false">RB</button><button class="quiet" data-position="WR" aria-pressed="false">WR</button><button class="quiet" data-position="TE" aria-pressed="false">TE</button></div><label class="sr-only" for="player-search">Search players</label><input id="player-search" type="search" placeholder="Search players" autocomplete="off"></div>
+<p id="season-warning" class="notice" hidden></p>
+<div class="season-table-wrap"><table class="season-table"><thead><tr><th scope="col">Rank</th><th scope="col">Player</th><th scope="col">ROS points</th><th scope="col" class="season-pg">Per game</th><th scope="col">Games</th></tr></thead><tbody id="season-rows"></tbody></table></div>
+<p id="season-empty" class="meta" hidden>No matching players.</p>
+<details class="season-method"><summary>How these rankings work</summary><p>Ranks sum Sleeper’s current half-PPR weekly projections for the remaining full weeks through Week 17. The current week is excluded because games may already have started. Flex includes RB, WR and TE; quarterbacks rank separately.</p><p>This is a projection ranking, not an expert consensus or trade-value chart. Standard half-PPR scoring applies, without your league’s TE premium or custom yardage bonuses. Games counts only weeks with a published projection; missing player weeks are not estimated. Injuries and role changes can affect future projections.</p><p id="season-source"></p><a href="https://api.sleeper.app/v1/state/nfl" target="_blank" rel="noopener noreferrer">Sleeper season state</a> · <a href="/draft-board-2026.html">2026 draft archive</a></details>
+</main></div></div></body></html>

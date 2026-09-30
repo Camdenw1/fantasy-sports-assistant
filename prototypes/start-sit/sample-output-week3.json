@@ -1,0 +1,778 @@
+{
+  "schema": "startsit/v1",
+  "generated_at": "2026-09-25T17:01:31.284692+00:00",
+  "platform": "sleeper",
+  "league": {
+    "id": "1389345251432370176",
+    "name": "DAYGO",
+    "season": "2026",
+    "week": 3,
+    "teams": 12,
+    "slots": [
+      "QB",
+      "RB",
+      "RB",
+      "WR",
+      "WR",
+      "TE",
+      "FLEX",
+      "REC_FLEX",
+      "K",
+      "DEF"
+    ],
+    "scoring_fingerprint": {
+      "pass_td": 4.0,
+      "pass_int": -2.0,
+      "rec": 0.5,
+      "bonus_rec_te": 0.25,
+      "bonus_rec_yd_100": 3.0,
+      "bonus_rec_yd_200": 4.0,
+      "bonus_rush_yd_100": 3.0,
+      "bonus_rush_yd_200": 4.0,
+      "bonus_pass_yd_300": 3.0,
+      "fum_lost": -2.0,
+      "fgm_30_39": 3.0,
+      "fgm_40_49": 3.0,
+      "fgm_50_59": 3.0,
+      "fgm_yds_over_30": 0.1,
+      "pts_allow_0": 10.0
+    }
+  },
+  "team": {
+    "roster_id": 5,
+    "name": "Wam Bam Cam"
+  },
+  "opponent": {
+    "team_name": "ZEBRAHIM",
+    "projected": 128.4,
+    "points_so_far": 21.5,
+    "win_prob_current": 0.524,
+    "win_prob_recommended": 0.524
+  },
+  "sources": {
+    "projections": [
+      "sleeper(rotowire)",
+      "espn"
+    ],
+    "schedule": "espn scoreboard",
+    "injuries": "sleeper players"
+  },
+  "totals": {
+    "current": 130.1,
+    "recommended": 130.1
+  },
+  "slots": [
+    {
+      "slot_index": 0,
+      "slot": "QB",
+      "eligible": [
+        "QB"
+      ],
+      "current": {
+        "id": "3294",
+        "name": "Dak Prescott",
+        "pos": "QB",
+        "team": "DAL",
+        "opp": "BAL",
+        "kickoff": "2026-09-27T20:25:00+00:00",
+        "game_state": "pre",
+        "implied_total": 25.0,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 2,
+        "proj": {
+          "mean": 18.51,
+          "p10": 8.4,
+          "p50": 17.3,
+          "p90": 30.2
+        },
+        "value": 18.51,
+        "eligible_positions": [
+          "QB"
+        ]
+      },
+      "recommended": {
+        "id": "3294",
+        "name": "Dak Prescott",
+        "pos": "QB",
+        "team": "DAL",
+        "opp": "BAL",
+        "kickoff": "2026-09-27T20:25:00+00:00",
+        "game_state": "pre",
+        "implied_total": 25.0,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 2,
+        "proj": {
+          "mean": 18.51,
+          "p10": 8.4,
+          "p50": 17.3,
+          "p90": 30.2
+        },
+        "value": 18.51,
+        "eligible_positions": [
+          "QB"
+        ]
+      },
+      "change": false,
+      "locked": false,
+      "action": "keep",
+      "reason": "Best option",
+      "confidence": "keep",
+      "delta": 0.0,
+      "p_better": null
+    },
+    {
+      "slot_index": 1,
+      "slot": "RB",
+      "eligible": [
+        "RB"
+      ],
+      "current": {
+        "id": "9221",
+        "name": "Jahmyr Gibbs",
+        "pos": "RB",
+        "team": "DET",
+        "opp": "NYJ",
+        "kickoff": "2026-09-27T17:00:00+00:00",
+        "game_state": "pre",
+        "implied_total": 27.0,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 2,
+        "proj": {
+          "mean": 23.58,
+          "p10": 10.6,
+          "p50": 22.0,
+          "p90": 38.5
+        },
+        "value": 23.58,
+        "eligible_positions": [
+          "RB"
+        ]
+      },
+      "recommended": {
+        "id": "9221",
+        "name": "Jahmyr Gibbs",
+        "pos": "RB",
+        "team": "DET",
+        "opp": "NYJ",
+        "kickoff": "2026-09-27T17:00:00+00:00",
+        "game_state": "pre",
+        "implied_total": 27.0,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 2,
+        "proj": {
+          "mean": 23.58,
+          "p10": 10.6,
+          "p50": 22.0,
+          "p90": 38.5
+        },
+        "value": 23.58,
+        "eligible_positions": [
+          "RB"
+        ]
+      },
+      "change": false,
+      "locked": false,
+      "action": "keep",
+      "reason": "Best option",
+      "confidence": "keep",
+      "delta": 0.0,
+      "p_better": null
+    },
+    {
+      "slot_index": 2,
+      "slot": "RB",
+      "eligible": [
+        "RB"
+      ],
+      "current": {
+        "id": "6790",
+        "name": "D'Andre Swift",
+        "pos": "RB",
+        "team": "CHI",
+        "opp": "PHI",
+        "kickoff": "2026-09-29T00:15:00+00:00",
+        "game_state": "pre",
+        "implied_total": 18.5,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 2,
+        "proj": {
+          "mean": 12.6,
+          "p10": 4.8,
+          "p50": 11.2,
+          "p90": 22.5
+        },
+        "value": 12.6,
+        "eligible_positions": [
+          "RB"
+        ]
+      },
+      "recommended": {
+        "id": "6790",
+        "name": "D'Andre Swift",
+        "pos": "RB",
+        "team": "CHI",
+        "opp": "PHI",
+        "kickoff": "2026-09-29T00:15:00+00:00",
+        "game_state": "pre",
+        "implied_total": 18.5,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 2,
+        "proj": {
+          "mean": 12.6,
+          "p10": 4.8,
+          "p50": 11.2,
+          "p90": 22.5
+        },
+        "value": 12.6,
+        "eligible_positions": [
+          "RB"
+        ]
+      },
+      "change": false,
+      "locked": false,
+      "action": "keep",
+      "reason": "Best option",
+      "confidence": "keep",
+      "delta": 0.0,
+      "p_better": null
+    },
+    {
+      "slot_index": 3,
+      "slot": "WR",
+      "eligible": [
+        "WR"
+      ],
+      "current": {
+        "id": "8144",
+        "name": "Chris Olave",
+        "pos": "WR",
+        "team": "NO",
+        "opp": "LV",
+        "kickoff": "2026-09-27T20:25:00+00:00",
+        "game_state": "pre",
+        "implied_total": 23.2,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 2,
+        "proj": {
+          "mean": 15.81,
+          "p10": 6.0,
+          "p50": 14.4,
+          "p90": 27.8
+        },
+        "value": 15.81,
+        "eligible_positions": [
+          "WR"
+        ]
+      },
+      "recommended": {
+        "id": "8144",
+        "name": "Chris Olave",
+        "pos": "WR",
+        "team": "NO",
+        "opp": "LV",
+        "kickoff": "2026-09-27T20:25:00+00:00",
+        "game_state": "pre",
+        "implied_total": 23.2,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 2,
+        "proj": {
+          "mean": 15.81,
+          "p10": 6.0,
+          "p50": 14.4,
+          "p90": 27.8
+        },
+        "value": 15.81,
+        "eligible_positions": [
+          "WR"
+        ]
+      },
+      "change": false,
+      "locked": false,
+      "action": "keep",
+      "reason": "Best option",
+      "challenger": {
+        "id": "8676",
+        "name": "Rashid Shaheed",
+        "value": 8.32,
+        "margin": 7.49,
+        "p_starter_better": 0.78
+      },
+      "confidence": "clear",
+      "delta": 0.0,
+      "p_better": null
+    },
+    {
+      "slot_index": 4,
+      "slot": "WR",
+      "eligible": [
+        "WR"
+      ],
+      "current": {
+        "id": "13279",
+        "name": "Carnell Tate",
+        "pos": "WR",
+        "team": "TEN",
+        "opp": "NYG",
+        "kickoff": "2026-09-27T17:00:00+00:00",
+        "game_state": "pre",
+        "implied_total": 18.0,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 2,
+        "proj": {
+          "mean": 8.77,
+          "p10": 3.3,
+          "p50": 7.3,
+          "p90": 16.7
+        },
+        "value": 8.77,
+        "eligible_positions": [
+          "WR"
+        ]
+      },
+      "recommended": {
+        "id": "13279",
+        "name": "Carnell Tate",
+        "pos": "WR",
+        "team": "TEN",
+        "opp": "NYG",
+        "kickoff": "2026-09-27T17:00:00+00:00",
+        "game_state": "pre",
+        "implied_total": 18.0,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 2,
+        "proj": {
+          "mean": 8.77,
+          "p10": 3.3,
+          "p50": 7.3,
+          "p90": 16.7
+        },
+        "value": 8.77,
+        "eligible_positions": [
+          "WR"
+        ]
+      },
+      "change": false,
+      "locked": false,
+      "action": "keep",
+      "reason": "Best option; close call vs Rashid Shaheed (+0.5, 51%)",
+      "challenger": {
+        "id": "8676",
+        "name": "Rashid Shaheed",
+        "value": 8.32,
+        "margin": 0.45,
+        "p_starter_better": 0.51
+      },
+      "confidence": "coin_flip",
+      "delta": 0.0,
+      "p_better": null
+    },
+    {
+      "slot_index": 5,
+      "slot": "TE",
+      "eligible": [
+        "TE"
+      ],
+      "current": {
+        "id": "8130",
+        "name": "Trey McBride",
+        "pos": "TE",
+        "team": "ARI",
+        "opp": "SF",
+        "kickoff": "2026-09-27T20:05:00+00:00",
+        "game_state": "pre",
+        "implied_total": 19.5,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 2,
+        "proj": {
+          "mean": 16.29,
+          "p10": 7.7,
+          "p50": 14.8,
+          "p90": 27.0
+        },
+        "value": 16.29,
+        "eligible_positions": [
+          "TE"
+        ]
+      },
+      "recommended": {
+        "id": "8130",
+        "name": "Trey McBride",
+        "pos": "TE",
+        "team": "ARI",
+        "opp": "SF",
+        "kickoff": "2026-09-27T20:05:00+00:00",
+        "game_state": "pre",
+        "implied_total": 19.5,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 2,
+        "proj": {
+          "mean": 16.29,
+          "p10": 7.7,
+          "p50": 14.8,
+          "p90": 27.0
+        },
+        "value": 16.29,
+        "eligible_positions": [
+          "TE"
+        ]
+      },
+      "change": false,
+      "locked": false,
+      "action": "keep",
+      "reason": "Best option",
+      "challenger": {
+        "id": "12493",
+        "name": "Oronde Gadsden",
+        "value": 8.39,
+        "margin": 7.9,
+        "p_starter_better": 0.82
+      },
+      "confidence": "clear",
+      "delta": 0.0,
+      "p_better": null
+    },
+    {
+      "slot_index": 6,
+      "slot": "FLEX",
+      "eligible": [
+        "RB",
+        "TE",
+        "WR"
+      ],
+      "current": {
+        "id": "13286",
+        "name": "Jadarian Price",
+        "pos": "RB",
+        "team": "SEA",
+        "opp": "WAS",
+        "kickoff": "2026-09-27T17:00:00+00:00",
+        "game_state": "pre",
+        "implied_total": 24.0,
+        "injury": "Questionable",
+        "injury_body_part": "Chest",
+        "play_prob": 0.8,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 2,
+        "proj": {
+          "mean": 10.77,
+          "p10": 4.0,
+          "p50": 9.3,
+          "p90": 19.6
+        },
+        "value": 8.62,
+        "eligible_positions": [
+          "RB"
+        ]
+      },
+      "recommended": {
+        "id": "13286",
+        "name": "Jadarian Price",
+        "pos": "RB",
+        "team": "SEA",
+        "opp": "WAS",
+        "kickoff": "2026-09-27T17:00:00+00:00",
+        "game_state": "pre",
+        "implied_total": 24.0,
+        "injury": "Questionable",
+        "injury_body_part": "Chest",
+        "play_prob": 0.8,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 2,
+        "proj": {
+          "mean": 10.77,
+          "p10": 4.0,
+          "p50": 9.3,
+          "p90": 19.6
+        },
+        "value": 8.62,
+        "eligible_positions": [
+          "RB"
+        ]
+      },
+      "change": false,
+      "locked": false,
+      "action": "keep",
+      "reason": "Questionable (Chest); close call vs Oronde Gadsden (+0.2, 50%)",
+      "challenger": {
+        "id": "12493",
+        "name": "Oronde Gadsden",
+        "value": 8.39,
+        "margin": 0.23,
+        "p_starter_better": 0.5
+      },
+      "confidence": "coin_flip",
+      "delta": 0.0,
+      "p_better": null
+    },
+    {
+      "slot_index": 7,
+      "slot": "REC_FLEX",
+      "eligible": [
+        "TE",
+        "WR"
+      ],
+      "current": {
+        "id": "11624",
+        "name": "Xavier Worthy",
+        "pos": "WR",
+        "team": "KC",
+        "opp": "MIA",
+        "kickoff": "2026-09-27T17:00:00+00:00",
+        "game_state": "pre",
+        "implied_total": 28.0,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 2,
+        "proj": {
+          "mean": 9.42,
+          "p10": 3.5,
+          "p50": 8.3,
+          "p90": 17.0
+        },
+        "value": 9.42,
+        "eligible_positions": [
+          "WR"
+        ]
+      },
+      "recommended": {
+        "id": "11624",
+        "name": "Xavier Worthy",
+        "pos": "WR",
+        "team": "KC",
+        "opp": "MIA",
+        "kickoff": "2026-09-27T17:00:00+00:00",
+        "game_state": "pre",
+        "implied_total": 28.0,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 2,
+        "proj": {
+          "mean": 9.42,
+          "p10": 3.5,
+          "p50": 8.3,
+          "p90": 17.0
+        },
+        "value": 9.42,
+        "eligible_positions": [
+          "WR"
+        ]
+      },
+      "change": false,
+      "locked": false,
+      "action": "keep",
+      "reason": "Best option; close call vs Oronde Gadsden (+1.0, 55%)",
+      "challenger": {
+        "id": "12493",
+        "name": "Oronde Gadsden",
+        "value": 8.39,
+        "margin": 1.03,
+        "p_starter_better": 0.55
+      },
+      "confidence": "lean",
+      "delta": 0.0,
+      "p_better": null
+    },
+    {
+      "slot_index": 8,
+      "slot": "K",
+      "eligible": [
+        "K"
+      ],
+      "current": {
+        "id": "8259",
+        "name": "Cameron Dicker",
+        "pos": "K",
+        "team": "LAC",
+        "opp": "BUF",
+        "kickoff": "2026-09-27T17:00:00+00:00",
+        "game_state": "pre",
+        "implied_total": 21.8,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 1,
+        "proj": {
+          "mean": 8.1,
+          "p10": 1.0,
+          "p50": 7.4,
+          "p90": 15.4
+        },
+        "value": 8.1,
+        "eligible_positions": [
+          "K"
+        ]
+      },
+      "recommended": {
+        "id": "8259",
+        "name": "Cameron Dicker",
+        "pos": "K",
+        "team": "LAC",
+        "opp": "BUF",
+        "kickoff": "2026-09-27T17:00:00+00:00",
+        "game_state": "pre",
+        "implied_total": 21.8,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 1,
+        "proj": {
+          "mean": 8.1,
+          "p10": 1.0,
+          "p50": 7.4,
+          "p90": 15.4
+        },
+        "value": 8.1,
+        "eligible_positions": [
+          "K"
+        ]
+      },
+      "change": false,
+      "locked": false,
+      "action": "keep",
+      "reason": "Best option",
+      "confidence": "keep",
+      "delta": 0.0,
+      "p_better": null
+    },
+    {
+      "slot_index": 9,
+      "slot": "DEF",
+      "eligible": [
+        "DEF"
+      ],
+      "current": {
+        "id": "NYG",
+        "name": "NYG D/ST",
+        "pos": "DEF",
+        "team": "NYG",
+        "opp": "TEN",
+        "kickoff": "2026-09-27T17:00:00+00:00",
+        "game_state": "pre",
+        "implied_total": 20.5,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 1,
+        "proj": {
+          "mean": 7.86,
+          "p10": 2.0,
+          "p50": 7.0,
+          "p90": 14.0
+        },
+        "value": 7.86,
+        "eligible_positions": [
+          "DEF"
+        ]
+      },
+      "recommended": {
+        "id": "NYG",
+        "name": "NYG D/ST",
+        "pos": "DEF",
+        "team": "NYG",
+        "opp": "TEN",
+        "kickoff": "2026-09-27T17:00:00+00:00",
+        "game_state": "pre",
+        "implied_total": 20.5,
+        "injury": null,
+        "injury_body_part": null,
+        "play_prob": 1.0,
+        "locked": false,
+        "actual": 0.0,
+        "sources": 1,
+        "proj": {
+          "mean": 7.86,
+          "p10": 2.0,
+          "p50": 7.0,
+          "p90": 14.0
+        },
+        "value": 7.86,
+        "eligible_positions": [
+          "DEF"
+        ]
+      },
+      "change": false,
+      "locked": false,
+      "action": "keep",
+      "reason": "Best option",
+      "confidence": "keep",
+      "delta": 0.0,
+      "p_better": null
+    }
+  ],
+  "swaps": [],
+  "alerts": [
+    {
+      "type": "gtd_recheck",
+      "player": "13286",
+      "at": "2026-09-27T15:30:00+00:00",
+      "message": "Jadarian Price Q -- recheck inactives at Sun 8:30 AM PT"
+    }
+  ],
+  "apply": {
+    "method": "deep_link",
+    "url": "https://sleeper.com/leagues/1389345251432370176/team",
+    "note": "Sleeper's public API is read-only; lineup writes need the app/site."
+  }
+}

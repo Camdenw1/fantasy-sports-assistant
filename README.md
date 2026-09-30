@@ -1,8 +1,77 @@
-# Sleeper draft guide — 2026
+# Fantasy Sports Assistant
 
-A two-profile draft board: the primary 12-team half-PPR Sleeper league, plus an
-alternate view for Dad's unusual weekly-bucket scoring. Both combine public draft
-timing, an expert board, custom projection models, and live injuries.
+A personal hub for fantasy leagues across platforms, with the longer-term goal of
+showing sports bets in the same place. The intended home screen should answer
+what needs attention across leagues, then let Camden reach the relevant lineup,
+waiver, matchup, draft, or bet without opening every app to find it.
+
+**Current state:** the 2026 draft board has Sleeper and Dad league profiles.
+The red scorecard workspace uses locally bundled NFL team marks and can read all fantasy leagues returned for a Sleeper username
+and show ESPN/CBS league snapshots in one Home view. The redesigned workspace
+has separate Home, Leagues, and Lineup screens, plus a refreshed draft archive. The broader product
+plans remain under `docs/product/`. Lineup changes and bet placement are not
+implemented.
+
+The draft board combines public draft timing, an expert board, custom projection
+models, and injury context captured at the September 7 cutoff. It is a preseason
+archive, not a current rest-of-season ranking.
+
+### First live dashboard slice
+
+On Camden's Mac, the dashboard is installed as a **local service**. It starts at
+login and restarts if its process exits. Open http://127.0.0.1:8765/.
+
+~~~bash
+python3 scripts/dashboard-service.py status
+~~~
+
+To install the service on another Mac, run `python3 scripts/dashboard-service.py install`.
+Remove automatic startup with `python3 scripts/dashboard-service.py uninstall`.
+Logs and dated report snapshots stay in gitignored `app/.cache/`. The service
+listens only on localhost. If the repository or Python installation moves,
+reinstall the service so its saved paths are updated.
+
+For a temporary session on any supported computer:
+
+~~~bash
+python3 app/server.py
+~~~
+
+Open http://127.0.0.1:8765 and enter a Sleeper username. Home loads every
+discovered Sleeper fantasy league and combines lineup fixes and injury rechecks.
+Choose a league to compare current and recommended starters. **Leagues** contains
+platform setup and imports:
+
+- **Sleeper:** discovered fantasy leagues refresh together. After a successful read,
+  the browser and server retain the last lineup report with its original timestamps, so a
+  failed refresh does not leave Home empty. Refresh jobs run in the background;
+  concurrent requests share one calculation, and fresh reports are reused for 60 seconds. Stale and incomplete inputs stay flagged.
+- **ESPN:** paste a public football league/team URL and choose your team number.
+  The local server reads roster, team, and settings views without credentials.
+  Review the imported roster and week before saving a snapshot. This adapter is
+  tested with fixtures; Camden's actual ESPN URL is still needed for validation.
+- **CBS / private ESPN:** copy a roster table with labelled Slot/Pos, Player, and
+  Status columns, or paste `slot | player | status` rows. Preview before saving.
+  Missing statuses remain Unknown. BN/BE/Bench/IR/Reserve slots are excluded from
+  starter alerts. Actual CBS page layout still needs validation from a supplied URL.
+- **Sleeper Pick'em:** can be listed as a snapshot; its picks do not populate here.
+
+Snapshots are saved only in this browser and must be updated after roster or
+injury changes. They flag obvious lineup needs but do not calculate start/sit
+swaps. Imported ESPN snapshots also do not refresh automatically yet. Saved
+snapshots from a different week are flagged and excluded from Home's action cards.
+
+The server runs the existing start/sit engine and
+fetches public Sleeper league data, ESPN public projections and the NFL
+scoreboard. The page does not submit lineup changes. Its saved example is a
+historical injury scenario, clearly labelled as such. The server binds only to
+this computer; the installed Mac service manages its lifetime.
+
+The full Sleeper player dump stays in the gitignored prototype cache. Its
+timestamp and the live roster fetch time are shown in the page. Missing
+projections and stale injury data are flagged; missing roster projections
+withhold the projected totals and prevent confident upgrade cards. The 2026
+draft board remains reachable from the local view.
 
 ```
 draft-board-2026.html   presentation — hand-edited, never overwritten
@@ -11,13 +80,17 @@ rankings.csv            generated — same data, spreadsheet form
 CLAUDE.md               project context for Claude Code
 REFRESH.md              runbook: "Read REFRESH.md and do a full refresh"
 refresh/                inputs + build chain
+docs/product/           proposed product, UX, design, and dashboard behavior
+prototypes/dashboard/   static home-screen mockup with fictional data
+prototypes/draft-board/ league-neutral scoring and settings experiments
+prototypes/start-sit/  read-only Sleeper start/sit experiment
 ```
 
 ## Use
 
 Open `draft-board-2026.html` in any browser. Tap a row to cross a player off, or
 hit the **+** next to a name to put him on your own team. State persists in
-localStorage, so closing the tab mid-draft is safe; "Reset board" clears it.
+localStorage, so closing the tab mid-draft is safe; **Draft sync & settings → Reset draft picks** clears it after confirmation.
 Filter by position to switch the tier bands from overall to positional.
 
 Use **Rank for → Sleeper league / Dad's league** at the top to switch scoring and
@@ -116,8 +189,9 @@ Full methodology is behind the "How this works" button on the board itself.
 
 ## Refresh schedule
 
-GitHub Actions refreshes and validates the generated data daily. Run one manual
-refresh on Sept 8 as the final human injury/flag review. Draft is Sept 9.
+The GitHub Actions workflow has a hard cutoff of 2026-09-07 19:40:09 UTC. Scheduled
+and manual runs after that instant are clean no-ops. The generated 2026 board is
+therefore an archived draft snapshot, not an in-season data feed.
 
 ## Data sources
 
@@ -162,8 +236,9 @@ IR / PUP / Out / Doubtful / Sus are struck through and **excluded from the value
 panel** — cheap for a reason is not the same as cheap.
 
 The build also cross-checks that feed against the hand-set `avail` in
-`players.py` and refuses to overwrite the board when a serious live status is
-still valued as fully healthy.
+`players.py`. For a feed-confirmed inactive player whose availability is still
+at least 0.95, `proj.py` caps it automatically and prints the change. Lower
+hand-set values are preserved.
 
 Two sources were tried and rejected rather than padding the count. **Sleeper**
 publishes no ADP at all — `search_rank` is search popularity, and their GraphQL has
@@ -179,11 +254,60 @@ hand-written. Coverage is uneven by design: a player unranked by one source show
 `NR` and is simply excluded from that player's average, and Sleeper covers the
 full pool so every player keeps at least one column.
 
-## Built with Claude
+## Working with Claude and Codex
 
-This project is developed with [Claude Code](https://claude.com/claude-code).
-The architecture split that makes it work — generated data in `board-data.js`,
-hand-tuned presentation in `draft-board-2026.html`, never regenerated from a
-template — exists so that Claude can refresh the numbers without touching the
-design, and rework the design without touching the pipeline. `CLAUDE.md` is the
-context file that keeps that boundary intact across sessions.
+`AGENTS.md` (Codex) and `CLAUDE.md` (Claude Code) carry the same project rules.
+Read the current code and Git status at the start of a task; these files preserve
+intent but can lag implementation. Use a focused branch for each change, review
+the diff and tests, then merge it before the other assistant starts a dependent
+change. If work overlaps, use separate worktrees and integrate through Git rather
+than editing the same checkout at once. Keep unfinished files visible in the
+handoff; do not reset or overwrite another assistant's uncommitted work.
+
+The existing board's key boundary is generated data in `board-data.js` versus
+hand-edited presentation in `draft-board-2026.html`. A data refresh must not
+regenerate the HTML. This boundary applies whichever assistant makes the change.
+
+## Current iteration and checks
+
+See [the September 29 handoff](docs/product/iteration-2026-09-29.md) for the
+redesign, import progress, source review, and next player-ranking milestone.
+
+~~~bash
+python3 -m unittest discover -s app/tests
+node app/tests/roster-import.test.js
+~~~
+
+## Reliability and offline behavior
+
+After loading the dashboard once, supported browsers cache the interface, draft
+archive, and team marks. An outage preserves navigation and saved reports; the
+page explicitly reports refresh failure. Offline mode cannot discover new leagues,
+import a public ESPN roster, or produce fresh recommendations. Browser cache
+clearing or first use still requires the local service. Stale data keeps its
+original date; it never becomes “fresh” because it was read from cache.
+
+Incomplete roster projections or an outdated recommendation model withhold the
+suggested lineup column. The optimizer uses injury-adjusted expected points and
+never credits a player with a hypothetical substitute already used elsewhere in
+the lineup. This fixes a specific double-counting bug; predictive accuracy still
+requires backtesting.
+
+Design reference and project choices: [design brief](docs/product/design-brief.md).
+Verification and handoff: [reliability iteration](docs/product/iteration-2026-09-30.md).
+
+### Current rest-of-season player view
+
+Open **Players** in the dashboard, or `http://127.0.0.1:8765/players.html`.
+This uses current Sleeper/RotoWire weekly half-PPR projections, summed for the
+remaining **full weeks through Week 17**. It excludes the current week and ranks
+RB/WR/TE together by default, with separate position filters. It is a projection
+ranking, not expert consensus, trade values, or a custom-league scoring model.
+The number of projected games and provider/read dates are shown; missing player
+weeks are not extrapolated. Projection reads happen in the background, are
+shared between requests, and retain the last complete snapshot during failure.
+Every remaining week must provide at least 150 real skill-player projection rows;
+ADP-only placeholders are rejected. API endpoints are undocumented and may change.
+The frozen September 7 draft board remains accessible through the archive link.
+
+The project’s subtle accents use red (`#980F26`) with translucent fills and markers: selected navigation, position tabs, buttons, and small context marks.

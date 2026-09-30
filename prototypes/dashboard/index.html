@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fantasy Home</title>
+<style>
+:root{
+  --paper:#FBFAF7; --panel:#FFFFFF; --row:#F4F2ED; --line:#E6E2D9; --line2:#D2CCC0;
+  --ink:#1E252C; --dim:#6C7580; --dimmer:#98A0A9;
+  --good:#2E7D5B; --goodbg:#E4F1EA; --bad:#B3462F; --badbg:#FAE7E1;
+  --warn:#B5842B; --warnbg:#F7EEDA; --info:#2F6E9E; --infobg:#E3EDF5;
+  --sl:#1F6247; --es:#B3462F; --cb:#2F6E9E;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:"Helvetica Neue",Inter,system-ui,-apple-system,sans-serif;}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#15191D; --panel:#1C2126; --row:#222830; --line:#2C333B; --line2:#3A424C;
+  --ink:#E7E9EB; --dim:#A3ABB4; --dimmer:#76808A;
+  --good:#5DBB8E; --goodbg:#1C3329; --bad:#E07A62; --badbg:#3A231D;
+  --warn:#D9A94E; --warnbg:#35291A; --info:#6FA8D6; --infobg:#1B2B38;
+  --sl:#5DBB8E; --es:#E07A62; --cb:#6FA8D6;}}
+:root[data-theme="dark"]{
+  --paper:#15191D; --panel:#1C2126; --row:#222830; --line:#2C333B; --line2:#3A424C;
+  --ink:#E7E9EB; --dim:#A3ABB4; --dimmer:#76808A;
+  --good:#5DBB8E; --goodbg:#1C3329; --bad:#E07A62; --badbg:#3A231D;
+  --warn:#D9A94E; --warnbg:#35291A; --info:#6FA8D6; --infobg:#1B2B38;
+  --sl:#5DBB8E; --es:#E07A62; --cb:#6FA8D6;}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.proto{font:11px/1.5 var(--mono);color:var(--warn);border:1px dashed var(--warn);padding:8px 10px;border-radius:3px;margin-bottom:12px}
+.clock{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.clock span{font:600 9px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dimmer);margin-right:4px}
+button{font:11px/1 var(--mono);cursor:pointer;border:1px solid var(--line2);background:var(--panel);color:var(--dim);border-radius:2px;padding:7px 10px;letter-spacing:.04em}
+button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.kicker{font:600 10px/1.5 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--good)}
+h1{margin:4px 0 0;font:800 clamp(22px,4vw,32px)/1.1 var(--sans);letter-spacing:-.02em}
+.ribbon{display:flex;flex-wrap:wrap;gap:6px 16px;margin:10px 0 16px;font:11px/1.4 var(--mono);color:var(--dim)}
+.ribbon b{color:var(--ink)}
+.leagues{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-bottom:18px}
+.lg{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:3px;padding:10px 12px}
+.lg .top{display:flex;justify-content:space-between;gap:8px;font:600 13px/1.3 var(--sans)}
+.lg .plat{font:600 9px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--c)}
+.lg .mu{font:11.5px/1.5 var(--mono);color:var(--dim);margin-top:6px}
+.wp{height:4px;background:var(--row);border-radius:2px;margin-top:6px;overflow:hidden}
+.wp i{display:block;height:100%;background:var(--c)}
+.state{font:600 10px/1 var(--mono);padding:3px 6px;border-radius:2px;white-space:nowrap}
+.state.ok{background:var(--goodbg);color:var(--good)}.state.warn{background:var(--warnbg);color:var(--warn)}.state.bad{background:var(--badbg);color:var(--bad)}
+.grid{display:grid;grid-template-columns:1fr 280px;gap:18px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:1fr}}
+.sys{background:var(--warnbg);border:1px solid var(--warn);color:var(--ink);border-radius:3px;padding:10px 12px;margin-bottom:12px;font-size:13.5px;line-height:1.45}
+.sys b{color:var(--warn)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:14px 16px;margin-bottom:10px}
+.card.hero{border:2px solid var(--bc);padding:18px 20px}
+.card.hero .hl{font-size:clamp(19px,2.6vw,24px)}
+.band{font:700 9.5px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--bc);display:flex;gap:10px;justify-content:space-between}
+.band .lock{color:var(--dim);letter-spacing:.04em;font-weight:500}
+.hl{font:700 16.5px/1.3 var(--sans);margin:8px 0 4px;letter-spacing:-.01em}
+.why{color:var(--dim);font-size:13.5px;line-height:1.5;margin:0 0 10px}
+.mem{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px}
+.mem .pb{font:700 9px/1 var(--mono);letter-spacing:.1em;color:var(--c);border:1px solid var(--c);padding:3px 5px;border-radius:2px;text-transform:uppercase}
+.mem .t{flex:1;min-width:160px}
+.mem .d{font:12px var(--mono);color:var(--good)}
+a.act{font:600 11px/1 var(--mono);color:var(--paper);background:var(--ink);text-decoration:none;padding:7px 10px;border-radius:2px;white-space:nowrap}
+.foot{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin-top:10px;font:10.5px/1.4 var(--mono);color:var(--dimmer)}
+.foot .stale{color:var(--warn)}
+.foot button{padding:5px 8px;font-size:10px}
+details.score summary{cursor:pointer;color:var(--dimmer)}
+details.score code{font:10.5px var(--mono);color:var(--dim)}
+h2{font:600 10px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--dimmer);margin:22px 0 10px}
+.clear{border:2px solid var(--good);background:var(--panel);border-radius:4px;padding:18px 20px;margin-bottom:10px}
+.clear .hl{color:var(--good)}
+.tl{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:12px 14px}
+.tl ol{list-style:none;margin:0;padding:0}
+.tl li{display:grid;grid-template-columns:78px 1fr;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:12.5px;line-height:1.4}
+.tl li:first-child{border-top:0}
+.tl li .when{font:11px var(--mono);color:var(--dim)}
+.tl li.past{opacity:.45}.tl li.next .when{color:var(--bad);font-weight:700}
+.tl li small{display:block;color:var(--dimmer);font-size:11.5px}
+.recap{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:10px 14px;font-size:13px;line-height:1.6;margin-bottom:12px}
+.fyi .card{padding:10px 14px}.fyi .hl{font-size:14px;margin:4px 0 2px}.fyi .why{margin:0;font-size:12.5px}
+details.fyi>summary{cursor:pointer;font:600 10px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--dimmer);margin:22px 0 10px}
+.empty{color:var(--dimmer);font-size:13px}
+</style></head>
+<body><div class="wrap">
+<div class="proto">PROTOTYPE · fictional injuries, projections and league data. Scores are computed live from the model in docs/product/dashboard.md (S × P × C × U). League/platform mapping for ESPN and CBS is assumed.</div>
+<div class="clock"><span>Prototype clock</span><div id="clk" style="display:contents"></div></div>
+<div class="kicker" id="mode"></div>
+<h1 id="title"></h1>
+<div class="ribbon" id="ribbon"></div>
+<div class="leagues" id="leagues"></div>
+<div class="grid">
+  <main id="main"></main>
+  <aside><h2 style="margin-top:0">Timeline</h2><div class="tl"><ol id="tl"></ol></div></aside>
+</div>
+</div>
+<script>
+// ---------- model (mirrors docs/product/dashboard.md section 4) ----------
+const SIGMA=30;
+const S={SYS:9,DRAFT:1.0,ZERO:1.0,DOUBT:0.8,ILLEGAL_IR:0.8,RISK:0.6,OPT:0.5,ROSTER:0.4,INFO:0.15};
+function erf(x){const s=Math.sign(x);x=Math.abs(x);const t=1/(1+0.3275911*x);
+  const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return s*y;}
+const Phi=x=>0.5*(1+erf(x/Math.SQRT2));
+const WP=m=>Phi(m/SIGMA);
+function stakeP(delta,m){ // percentage points of win probability
+  const exact=WP(m+delta)-WP(m), floor=0.3*0.3989*delta/SIGMA;
+  return 100*Math.max(exact,floor);}
+function U(t){ if(t==null) return .25; if(t<=3) return 1; if(t<=24) return .8; if(t<=72) return .55; return .35;}
+function halfLife(mode){return mode.startsWith('sun')?30:(mode==='tue'?1440:360);}
+const LINKS={S:'https://sleeper.com/leagues/1180234567890/team',E:'https://fantasy.espn.com/football/team?leagueId=88112233&teamId=4&seasonId=2026',
+  C:'https://dadleague.football.cbssports.com/'};
+const PNAME={S:'Sleeper',E:'ESPN',C:'CBS'}, PCOL={S:'var(--sl)',E:'var(--es)',C:'var(--cb)'};
+
+// ---------- scenarios ----------
+const SC={
+ fri:{label:'Fri 9:00 AM', mode:'fri', kicker:'Week 3 · Friday · final injury reports', now:'Fri Sep 25, 9:00 AM PT',
+  nextLock:'Sun 10:00 AM PT (49h)', nextCheck:'Sun 8:30 AM PT: early inactives',
+  leagues:{S:{name:'Sleeper league',meta:'12-team half-PPR',rec:'1-1',opp:'Team Chaos',my:118.2,op:114.9,age:4,src:'live'},
+           E:{name:'ESPN league',meta:'assumed: 3rd league',rec:'2-0',opp:'Gridiron Gurus',my:104.3,op:109.1,age:190,src:'snapshot'},
+           C:{name:"Dad's league",meta:'assumed: CBS, 10-team',rec:'1-1',opp:'Uncle Rick',my:96.0,op:78.5,age:190,src:'snapshot'}},
+  items:[
+   {id:'out-higgins',cls:'ZERO',pid:'6794',hl:'Bench Tee Higgins: ruled OUT (hamstring)',lock:49,lockTxt:'Locks Sun 10:00 AM PT',
+    whyTpl:'Friday report ruled him out. He starts in {n} leagues and would score 0.',
+    members:[{lg:'S',txt:'WR2 → start Jauan Jennings',d:9.8},{lg:'C',txt:'FLEX → start Khalil Shakir',d:7.4}],
+    fresh:[['injury','Sleeper',12]]},
+   {id:'opt-espn',cls:'OPT',hl:'ESPN: 2 lineup changes worth +4.1',lock:52.4,lockTxt:'First change locks Sun 1:25 PM PT',conf:.8,
+    whyTpl:'Projection gaps above the 1.5-pt tie band, in a matchup you trail by 4.8.',
+    members:[{lg:'E',txt:'WR3: Rome Odunze → Jakobi Meyers (+2.6) · TE: Kincaid → Kraft (+1.5)',d:4.1}],fresh:[]},
+   {id:'flex-kyren',cls:'OPT',pid:'8150',hl:'Move Kyren Williams (Q, SNF) to FLEX',lock:56.3,lockTxt:'SNF locks Sun 5:20 PM PT',fixedP:1.0,conf:.9,
+    whyTpl:'Questionable (ankle) and playing Sunday night. In FLEX he can be swapped for a RB, WR or TE after 3:50 inactives.',
+    members:[{lg:'E',txt:'RB2 ↔ FLEX with Jaylen Waddle'}],fresh:[['injury','Sleeper',12]]},
+   {id:'ir-rice',cls:'ROSTER',pid:'7547',hl:"Move Rashee Rice to IR in Dad's league",lock:15,lockTxt:'CBS waivers run Sat 12:00 AM PT',fixedP:2.0,
+    whyTpl:'Your IR slot is empty and he is IR-eligible. That frees a bench spot before waivers run.',
+    members:[{lg:'C',txt:'Bench → IR, then claim a free agent'}],fresh:[]},
+   {id:'trade',cls:'ROSTER',hl:'Trade offer from Gridiron Gurus expires Saturday',lock:24,lockTxt:'Expires Sat 9:00 AM PT',fixedP:1.5,
+    whyTpl:'They offer DK Metcalf for Kyren Williams + Dalton Kincaid.',members:[{lg:'E',txt:'Review offer'}],fresh:[]},
+   {id:'news-waddle',cls:'INFO',pid:'7526',hl:'Jaylen Waddle: full practice Friday, no designation',fixedP:1,whyTpl:'Cleared after limited Wed/Thu. No action needed.',members:[{lg:'E'}],fresh:[['news','Sleeper',30]]},
+   {id:'exp-bijan',cls:'INFO',pid:'9509',hl:'Bijan Robinson is on 2 of 3 rosters',fixedP:1,whyTpl:'21% of your combined projected points this week ride on one player.',members:[{lg:'S'},{lg:'C'}],fresh:[]},
+  ],
+  timeline:[['Thu 5:15 PM','TNF final. Sleeper banked 18.4, CBS 12.1','past'],['Sun 8:30 AM','Early inactives','next'],['Sun 10:00 AM','Early lock: Higgins fix needed in Sleeper, CBS'],
+   ['Sun 11:35 AM','Late inactives'],['Sun 1:25 PM','Late lock (ESPN changes)'],['Sun 3:50 PM','SNF inactives: recheck Kyren Williams (Q)'],['Sun 5:20 PM','SNF lock'],['Mon 5:15 PM','MNF lock']]},
+
+ sunprep:{label:'Sun 8:45 AM', mode:'sunprep', kicker:'Week 3 · Sunday · inactives are out', now:'Sun Sep 27, 8:45 AM PT',
+  nextLock:'10:00 AM PT (1h 15m)', nextCheck:'11:35 AM PT: late inactives',
+  leagues:{S:{name:'Sleeper league',meta:'12-team half-PPR',rec:'1-1',opp:'Team Chaos',my:117.0,op:115.5,age:2,src:'live'},
+           E:{name:'ESPN league',meta:'assumed: 3rd league',rec:'2-0',opp:'Gridiron Gurus',my:108.6,op:109.1,age:40,src:'snapshot'},
+           C:{name:"Dad's league",meta:'assumed: CBS, 10-team',rec:'1-1',opp:'Uncle Rick',my:95.2,op:80.1,age:840,src:'snapshot'}},
+  sys:[{lg:'C',txt:"<b>CBS data is 14h old on game day.</b> Dad's league can't be reported clear until it's re-read. Run the set-lineups read, or open CBS and check the lineup before 10:00."}],
+  items:[
+   {id:'inact-olave',cls:'ZERO',pid:'8144',hl:'Bench Chris Olave: INACTIVE (concussion)',lock:1.25,lockTxt:'Locks 10:00 AM PT',
+    whyTpl:'On the 8:30 inactive list. He starts in {n} leagues and would score 0.',
+    members:[{lg:'S',txt:'FLEX → start Jauan Jennings',d:8.2},{lg:'E',txt:'WR2 → start Jakobi Meyers',d:7.1}],fresh:[['inactives','Sleeper',9]]},
+   {id:'opt-sl',cls:'OPT',hl:'Sleeper: 1 change worth +1.9',lock:1.25,lockTxt:'Locks 10:00 AM PT',conf:.7,
+    whyTpl:'Just above the 1.5-pt tie band. While you are fixing Olave in Sleeper anyway.',members:[{lg:'S',txt:'DEF: Colts → Steelers (+1.9)',d:1.9}],fresh:[]},
+   {id:'exp-bijan',cls:'INFO',pid:'9509',hl:'Bijan Robinson is on 2 of 3 rosters',fixedP:1,whyTpl:'Active. 21% of your combined projected points.',members:[{lg:'S'},{lg:'C'}],fresh:[]},
+  ],
+  timeline:[['8:30 AM','Early inactives posted: Olave OUT','past'],['10:00 AM','Early lock','next'],['11:35 AM','Late inactives'],['1:25 PM','Late lock'],['3:50 PM','SNF inactives: recheck Kyren Williams (Q)'],['5:20 PM','SNF lock']]},
+
+ sunlive:{label:'Sun 2:10 PM', mode:'sunlive', kicker:'Week 3 · Sunday · games live', now:'Sun Sep 27, 2:10 PM PT',
+  nextLock:'5:20 PM PT (3h 10m)', nextCheck:'3:50 PM PT: SNF inactives',
+  leagues:{S:{name:'Sleeper league',meta:'LIVE 84.2 – 96.6',rec:'1-1',opp:'Team Chaos',my:111.4,op:119.0,age:1,src:'live',live:true},
+           E:{name:'ESPN league',meta:'LIVE 71.0 – 64.8',rec:'2-0',opp:'Gridiron Gurus',my:110.2,op:103.9,age:25,src:'snapshot',live:true},
+           C:{name:"Dad's league",meta:'LIVE 88.5 – 60.2',rec:'1-1',opp:'Uncle Rick',my:104.0,op:77.3,age:25,src:'snapshot',live:true}},
+  items:[
+   {id:'info-sl',cls:'INFO',hl:'Sleeper: you need 21.6 from Kyren Williams and your Steelers D',fixedP:1,whyTpl:'Down 12.4 with 2 players left. Nothing is swappable yet; Williams decision comes at 3:50.',members:[{lg:'S'}],fresh:[]},
+  ],
+  timeline:[['10:00 AM','Early games final','past'],['1:25 PM','Late games in progress','past'],['3:50 PM','SNF inactives: Kyren Williams (Q) in ESPN FLEX','next'],['5:20 PM','SNF lock'],['Mon 5:15 PM','MNF lock']]},
+
+ sat:{label:'Sat 10:00 AM', mode:'sat', kicker:'Week 3 · Saturday', now:'Sat Sep 26, 10:00 AM PT',
+  nextLock:'Sun 10:00 AM PT (24h)', nextCheck:'Sun 8:30 AM PT: early inactives',
+  leagues:{S:{name:'Sleeper league',meta:'12-team half-PPR',rec:'1-1',opp:'Team Chaos',my:118.9,op:114.9,age:3,src:'live'},
+           E:{name:'ESPN league',meta:'assumed: 3rd league',rec:'2-0',opp:'Gridiron Gurus',my:108.4,op:109.1,age:60,src:'snapshot'},
+           C:{name:"Dad's league",meta:'assumed: CBS, 10-team',rec:'1-1',opp:'Uncle Rick',my:96.4,op:78.5,age:60,src:'snapshot'}},
+  items:[
+   {id:'exp-bijan',cls:'INFO',pid:'9509',hl:'Bijan Robinson is on 2 of 3 rosters',fixedP:1,whyTpl:'21% of your combined projected points.',members:[{lg:'S'},{lg:'C'}],fresh:[]},
+   {id:'news-kw',cls:'INFO',pid:'8150',hl:'Kyren Williams stays Questionable for SNF',fixedP:1,whyTpl:'Already in FLEX. Decision at 3:50 PM Sunday.',members:[{lg:'E'}],fresh:[['injury','Sleeper',40]]},
+  ],
+  timeline:[['Sun 8:30 AM','Early inactives','next'],['Sun 10:00 AM','Early lock'],['Sun 3:50 PM','SNF inactives: Kyren Williams (Q)'],['Sun 5:20 PM','SNF lock']]},
+
+ tue:{label:'Tue 10:00 AM', mode:'tue', kicker:'Week 4 · Tuesday · recap and waivers', now:'Tue Sep 29, 10:00 AM PT',
+  nextLock:'Sleeper waivers Wed 12:00 AM PT (14h)', nextCheck:'Wed 9:00 AM PT: claim results',
+  recap:'Week 3: <b>Sleeper W</b> 124.2–110.8 · <b>ESPN L</b> 101.4–108.0 (8.3 pts left on bench) · <b>CBS W</b> 112.6–81.0. No zeros started.',
+  leagues:{S:{name:'Sleeper league',meta:'12-team half-PPR',rec:'2-1',opp:'Hot Routes',my:116.0,op:119.2,age:5,src:'live'},
+           E:{name:'ESPN league',meta:'assumed: 3rd league',rec:'2-1',opp:'Fourth & Long',my:106.1,op:101.0,age:300,src:'snapshot'},
+           C:{name:"Dad's league",meta:'assumed: CBS, 10-team',rec:'2-1',opp:'Mom',my:92.8,op:94.0,age:300,src:'snapshot'}},
+  items:[
+   {id:'illegal-ir',cls:'ILLEGAL_IR',pid:'4199',hl:'Isiah Pacheco is off IR: activate or drop him in Sleeper',lock:14,lockTxt:'Waivers run Wed 12:00 AM PT',fixedP:3,
+    whyTpl:'Sleeper blocks all waiver claims while an ineligible player sits in IR.',members:[{lg:'S',txt:'IR → bench (drop Tyjae Spears to make room)'}],fresh:[['injury','Sleeper',20]]},
+   {id:'hole-dst',cls:'ROSTER',hl:"Dad's league: no DST for Week 4 (Eagles bye)",lock:38,lockTxt:'CBS waivers run Thu 12:00 AM PT',
+    whyTpl:'Recommended claim: Commanders D/ST (vs NYG), 6.5 pts over nothing. Drop Rashee Rice only if IR slot is used.',
+    members:[{lg:'C',txt:'Claim Commanders D/ST · $3 FAAB',d:6.5}],fresh:[]},
+   {id:'olave-wk4',cls:'ZERO',pid:'8144',hl:'Chris Olave out for Week 4 (concussion protocol)',lock:124,lockTxt:'Locks Sun Oct 4, 10:00 AM PT',
+    whyTpl:'Not cleared by Tuesday. Already benched-worthy in {n} leagues; set it now or wait for Friday.',
+    members:[{lg:'S',txt:'FLEX → Jauan Jennings',d:8.0},{lg:'E',txt:'WR2 → Jakobi Meyers',d:6.9}],fresh:[['injury','Sleeper',20]]},
+   {id:'trend',cls:'INFO',hl:'Trending add: Jalen McMillan (+41k adds in 24h)',fixedP:1,whyTpl:'Available in Sleeper and ESPN. Fits no current hole.',members:[{lg:'S'},{lg:'E'}],fresh:[]},
+  ],
+  timeline:[['Wed 12:00 AM','Sleeper waivers run','next'],['Wed 3:00 AM','ESPN waivers run'],['Thu 12:00 AM','CBS waivers run'],['Thu 5:15 PM','TNF lock'],['Fri','Final injury reports']]},
+
+ draft:{label:'Sep 5 (draft season)', mode:'draft', kicker:'Pre-season · drafts', now:'Sat Sep 5, 10:00 AM PT',
+  nextLock:"CBS draft Sun 7:00 PM PT (33h)", nextCheck:'Sun 7:00 PM PT',
+  leagues:{S:{name:'Sleeper league',meta:'Draft Wed Sep 9, 6:00 PM',pre:true,age:5,src:'live'},
+           E:{name:'ESPN league',meta:'Drafted Sep 3 · 16 players',pre:true,done:true,age:600,src:'snapshot'},
+           C:{name:"Dad's league",meta:'Draft Sun Sep 6, 7:00 PM',pre:true,age:600,src:'snapshot'}},
+  items:[
+   {id:'draft-cbs',cls:'DRAFT',hl:"Dad's league drafts tomorrow at 7:00 PM",lock:33,lockTxt:'Draft Sun 7:00 PM PT',fixedP:10,draft:true,
+    whyTpl:"10 teams, 18 rounds, weekly-bucket scoring. Switch the board to Dad's profile before you start.",
+    members:[{lg:'C',txt:"Draft board · Dad's league profile",url:'../../draft-board-2026.html'}],fresh:[]},
+   {id:'draft-sl',cls:'DRAFT',hl:'Sleeper league drafts Wednesday',lock:104,lockTxt:'Draft Wed 6:00 PM PT',fixedP:10,draft:true,
+    whyTpl:'Paste the draft id into the board for live sync on the day.',members:[{lg:'S',txt:'Draft board · Sleeper profile',url:'../../draft-board-2026.html'}],fresh:[]},
+  ],
+  timeline:[['Sep 3','ESPN draft done','past'],['Sun 7:00 PM','CBS draft','next'],['Wed 6:00 PM','Sleeper draft'],['Thu Sep 10','Week 1 kickoff']]},
+};
+
+// ---------- ranking ----------
+function rank(sc){
+  const hl=halfLife(sc.mode);
+  return sc.items.map(it=>{
+    const s=S[it.cls], u=U(it.lock);
+    let P=0,C=0; const parts=[];
+    it.members.forEach(m=>{
+      const L=sc.leagues[m.lg]; const margin=(L.my??0)-(L.op??0);
+      const p=it.fixedP!=null?it.fixedP/it.members.length:stakeP(m.d||0,margin);
+      const ages=[L.age,...it.fresh.map(f=>f[2])];
+      const cf=Math.pow(.5,Math.max(...ages)/hl);
+      const c=(it.conf??1)*cf; P+=p; C+=c*p; parts.push({p,c,cf});});
+    C=P?C/P:1; // P-weighted confidence
+    const pr=s*P*C*u; // == sum of member priorities
+    let band= (it.cls==='ZERO'&&it.lock<=3)||pr>=3 ? 'do' : pr>=1 ? 'before' : pr>=.25 ? 'week' : 'fyi';
+    if(it.cls==='INFO') band='fyi';
+    const stale=parts.some(x=>x.cf<.5);
+    return {...it,S:s,P,C,U:u,pr,band,stale};
+  }).sort((a,b)=>b.pr-a.pr||(a.lock??1e9)-(b.lock??1e9));
+}
+
+// ---------- render ----------
+const BAND={do:['Do now','var(--bad)'],before:['Before lock','var(--warn)'],week:['This week','var(--info)'],fyi:['FYI','var(--dimmer)']};
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function ageTxt(m){return m<60?m+'m ago':m<1440?Math.round(m/60)+'h ago':Math.round(m/1440)+'d ago';}
+function card(it,sc,hero){
+  const [bn,bc]=BAND[it.band];
+  const mem=it.members.filter(m=>m.txt).map(m=>`<div class="mem" style="--c:${PCOL[m.lg]}"><span class="pb">${PNAME[m.lg]}</span>
+    <span class="t">${esc(m.txt)}${m.d?` <span class="d">+${m.d.toFixed(1)}</span>`:''}</span>
+    <a class="act" href="${m.url||LINKS[m.lg]}" target="_blank" rel="noopener">${m.url?'Open board':'Open '+PNAME[m.lg]} ↗</a></div>`).join('');
+  const fr=[...it.fresh.map(f=>`${f[0]}: ${f[1]} ${ageTxt(f[2])}`),
+    ...[...new Set(it.members.map(m=>m.lg))].map(k=>{const L=sc.leagues[k];return `roster: ${PNAME[k]} ${L.src} ${ageTxt(L.age)}`;})];
+  const why=it.whyTpl.replace('{n}',it.members.length);
+  const snooze=it.cls==='ZERO'?'<button>Snooze 1h</button>':'<button>My call</button>';
+  return `<div class="card ${hero?'hero':''}" style="--bc:${bc}">
+   <div class="band"><span>${hero?'Most important now · ':''}${bn}</span><span class="lock">${it.lockTxt||''}</span></div>
+   <div class="hl">${esc(it.hl)}</div><p class="why">${esc(why)}</p>${mem}
+   <div class="foot"><span class="${it.stale?'stale':''}">${it.stale?'Verify · ':''}${fr.join(' · ')}</span>
+   ${it.band!=='fyi'?snooze:''}
+   <details class="score"><summary>why ranked here</summary><code>S ${it.S} × P ${it.P.toFixed(1)} × C ${it.C.toFixed(2)} × U ${it.U} = ${it.pr.toFixed(2)}</code></details></div></div>`;
+}
+function render(key){
+  const sc=SC[key];
+  document.querySelectorAll('#clk button').forEach(b=>b.classList.toggle('on',b.dataset.k===key));
+  document.getElementById('mode').textContent=sc.kicker;
+  const items=rank(sc);
+  const act=items.filter(i=>i.band!=='fyi');
+  const heroOk=act.length&&(act[0].band==='do'||act[0].band==='before');
+  document.getElementById('title').textContent=heroOk?`${act.filter(i=>i.band==='do'||i.band==='before').length} thing${act.filter(i=>i.band==='do'||i.band==='before').length>1?'s':''} to do before the next lock`:
+    (sc.sys?'Check one league before lock':'You’re all set');
+  document.getElementById('ribbon').innerHTML=`<span>Now <b>${sc.now}</b></span><span>Next lock <b>${sc.nextLock}</b></span><span>Next checkpoint <b>${sc.nextCheck}</b></span>`;
+  // league strip
+  const byLg={}; act.forEach(i=>i.members.forEach(m=>{byLg[m.lg]=(byLg[m.lg]||0)+1;}));
+  document.getElementById('leagues').innerHTML=Object.entries(sc.leagues).map(([k,L])=>{
+    const staleL=Math.pow(.5,L.age/halfLife(sc.mode))<.5;
+    let st= staleL?['warn','Unverified']: byLg[k]?['bad',byLg[k]+' open']:['ok','Set ✓'];
+    if(L.pre) st=L.done?['ok','Drafted']:['warn','Pre-draft'];
+    const wp=L.pre?null:Math.round(WP(L.my-L.op)*100);
+    return `<div class="lg" style="--c:${PCOL[k]}"><div class="plat">${PNAME[k]}</div>
+     <div class="top"><span>${L.name}</span><span class="state ${st[0]}">${st[1]}</span></div>
+     <div class="mu">${L.meta}${L.pre?'':`<br>${L.rec} · vs ${L.opp}<br>${L.live?'proj final':'proj'} ${L.my.toFixed(1)}–${L.op.toFixed(1)} · win ${wp}%`}</div>
+     ${wp!=null?`<div class="wp"><i style="width:${wp}%"></i></div>`:''}</div>`;}).join('');
+  // main
+  let h='';
+  (sc.sys||[]).forEach(s=>h+=`<div class="sys">${s.txt}</div>`);
+  if(sc.recap) h+=`<div class="recap">${sc.recap}</div>`;
+  if(heroOk){ h+=card(act[0],sc,true); }
+  else { h+=`<div class="clear"><div class="band" style="--bc:var(--good)"><span>All clear</span></div>
+     <div class="hl">${sc.sys?'Two leagues are set. One needs a fresh read.':'All 3 lineups are set.'}</div>
+     <p class="why" style="margin:0">Next checkpoint: <b>${sc.nextCheck}</b>. Nothing on this page needs you before then.</p></div>`; }
+  const rest=heroOk?act.slice(1):act;
+  if(rest.length){ h+='<h2>Also this week</h2>'+rest.map(i=>card(i,sc,false)).join(''); }
+  const fyi=items.filter(i=>i.band==='fyi');
+  if(fyi.length) h+=`<details class="fyi" ${heroOk?'':'open'}><summary>FYI · ${fyi.length}</summary>${fyi.map(i=>card(i,sc,false)).join('')}</details>`;
+  document.getElementById('main').innerHTML=h;
+  document.getElementById('tl').innerHTML=sc.timeline.map(([w,t,c])=>`<li class="${c||''}"><span class="when">${w}</span><span>${esc(t)}</span></li>`).join('');
+  try{localStorage.setItem('dash-proto-k',key);}catch(e){}
+}
+document.getElementById('clk').innerHTML=Object.entries(SC).map(([k,v])=>`<button data-k="${k}">${v.label}</button>`).join('');
+document.getElementById('clk').addEventListener('click',e=>{const k=e.target.dataset&&e.target.dataset.k;if(k)render(k);});
+let start='fri'; try{const s=localStorage.getItem('dash-proto-k'); if(s&&SC[s]) start=s;}catch(e){}
+render(start);
+</script>
+</body></html>

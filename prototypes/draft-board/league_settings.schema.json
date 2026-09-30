@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fantasy-sports-assistant:league-settings:v1",
+  "title": "LeagueSettings",
+  "description": "Canonical, platform-neutral league settings. Prototype adapters translate Sleeper scoring_settings and ESPN scoringItems into this shape; CBS mapping is future work. Stat names use the canonical vocabulary described in docs/product/draft-board.md section 2 (Sleeper snake_case, because the projection feed already speaks it).",
+  "type": "object",
+  "required": ["schema_version", "name", "teams", "roster", "scoring"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": 1},
+    "name": {"type": "string"},
+    "platform": {"enum": ["sleeper", "espn", "cbs", "yahoo", "manual"]},
+    "platform_league_id": {"type": "string"},
+    "season": {"type": "integer"},
+    "teams": {"type": "integer", "minimum": 2, "maximum": 32},
+    "games": {
+      "type": "integer", "default": 17,
+      "description": "Games each player's season projection is spread over. Per-game rules are evaluated per game and multiplied by this."
+    },
+    "draft": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {"enum": ["snake", "linear", "auction", "third_round_reversal"], "default": "snake"},
+        "rounds": {"type": "integer", "description": "Defaults to the sum of starter counts + bench."}
+      }
+    },
+    "roster": {
+      "type": "object",
+      "required": ["slots", "bench"],
+      "additionalProperties": false,
+      "properties": {
+        "slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "eligible", "count"],
+            "additionalProperties": false,
+            "properties": {
+              "id": {"type": "string", "description": "Display label: QB, RB, FLEX, W/T, SUPERFLEX, K, DST ..."},
+              "eligible": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/position"}},
+              "count": {"type": "integer", "minimum": 1}
+            }
+          }
+        },
+        "bench": {"type": "integer", "minimum": 0},
+        "ir": {"type": "integer", "minimum": 0, "default": 0},
+        "taxi": {"type": "integer", "minimum": 0, "default": 0}
+      }
+    },
+    "scoring": {
+      "type": "object",
+      "required": ["rules"],
+      "additionalProperties": false,
+      "properties": {
+        "rules": {"type": "array", "items": {"$ref": "#/$defs/rule"}},
+        "unsupported": {
+          "type": "array",
+          "description": "Platform rules the adapter recognised but the engine cannot price (IDP, return yards, punters, ...). Kept so the UI can say what is NOT modelled instead of silently dropping it.",
+          "items": {
+            "type": "object",
+            "required": ["source_key", "points", "reason"],
+            "properties": {
+              "source_key": {"type": "string"},
+              "points": {"type": "number"},
+              "reason": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "model": {
+      "type": "object",
+      "description": "Draft-model knobs. Everything here has a default; a league file only overrides what it must. See docs section 3.",
+      "additionalProperties": false,
+      "properties": {
+        "model_weight": {"oneOf": [{"const": "auto"}, {"type": "number", "minimum": 0, "maximum": 1}], "default": "auto"},
+        "reliability": {"type": "object", "additionalProperties": {"type": "number"}, "default": {"K": 0.15, "DST": 0.30}},
+        "floor_rounds_from_end": {
+          "type": "object", "additionalProperties": {"type": "integer"},
+          "default": {"DST": 4, "K": 2},
+          "description": "Earliest pick = first pick of round (rounds - n + 1). Reproduces Sleeper 145/169 (16 rounds x 12) and Dad 141/161 (18 x 10)."
+        },
+        "late_insert_stride": {"type": "integer", "default": 2},
+        "market_combiner": {"enum": ["weighted", "median", "auto"], "default": "auto"},
+        "anchor_lanes": {"type": "object", "additionalProperties": {"type": "number"}},
+        "tiers": {
+          "type": "object",
+          "properties": {"overall_gap": {"type": "number"}, "position_gap": {"type": "number"}}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "position": {"enum": ["QB", "RB", "WR", "TE", "K", "DST", "DL", "LB", "DB"]},
+    "positions": {
+      "type": "array", "items": {"$ref": "#/$defs/position"},
+      "description": "Rule applies only to these positions. Omitted = all positions. Rules are ADDITIVE, so a TE premium is a second rec rule with positions [TE]."
+    },
+    "rule": {
+      "oneOf": [
+        {"$ref": "#/$defs/per_unit"},
+        {"$ref": "#/$defs/game_tiers"},
+        {"$ref": "#/$defs/game_step"},
+        {"$ref": "#/$defs/distance"}
+      ]
+    },
+    "per_unit": {
+      "type": "object",
+      "description": "Linear: points x stat. Closed form -- E[points] = points x E[stat]. Covers ~90% of every platform's scoring.",
+      "required": ["type", "stat", "points"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"const": "per_unit"},
+        "stat": {"type": "string"},
+        "points": {"type": "number"},
+        "positions": {"$ref": "#/$defs/positions"},
+        "source_key": {"type": "string"}
+      }
+    },
+    "game_tiers": {
+      "type": "object",
+      "description": "Per-GAME exclusive tiers: the single tier whose [min, max] contains the game's stat pays. Yardage bonuses (100-199 = 3, 200+ = 4), DST points-allowed and yards-allowed tables. Cumulative platforms are converted to exclusive ranges by the adapter. Needs the per-game distribution (E[tier(X)] != tier(E[X])).",
+      "required": ["type", "stat", "tiers"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"const": "game_tiers"},
+        "stat": {"type": "string"},
+        "tiers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["min", "points"],
+            "additionalProperties": false,
+            "properties": {"min": {"type": "number"}, "max": {"type": "number"}, "points": {"type": "number"}}
+          }
+        },
+        "positions": {"$ref": "#/$defs/positions"},
+        "source_key": {"type": "string"}
+      }
+    },
+    "game_step": {
+      "type": "object",
+      "description": "Per-GAME whole-point steps: 0 below `start`, then `points` per full `every` beyond it, at most `max_steps` steps. ESPN 'every 25 rushing yards' (start=every=25), CBS whole-point yardage, Dad's 75/25/20-yard buckets and his 3-4 / 5-6 reception tiers (start=3, every=2).",
+      "required": ["type", "stat", "every", "points"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"const": "game_step"},
+        "stat": {"type": "string"},
+        "start": {"type": "number", "description": "Stat value that earns the first step. Defaults to `every`."},
+        "every": {"type": "number", "exclusiveMinimum": 0},
+        "points": {"type": "number"},
+        "max_steps": {"type": "integer"},
+        "positions": {"$ref": "#/$defs/positions"},
+        "source_key": {"type": "string"}
+      }
+    },
+    "distance": {
+      "type": "object",
+      "description": "Points per EVENT by its length: TD distance tables, long-TD bonuses (Sleeper rush_td_40p), FG distance buckets, per-yard FG scoring. Additive with any per_unit rule on the same event. Closed form given a per-player distance distribution -- each event is independent, so no simulation is needed.",
+      "required": ["type", "event"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"const": "distance"},
+        "event": {"enum": ["pass_td", "rush_td", "rec_td", "fg_made", "fg_miss", "def_td", "st_td"]},
+        "bins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["min", "points"],
+            "additionalProperties": false,
+            "properties": {"min": {"type": "number"}, "max": {"type": "number"}, "points": {"type": "number"}}
+          }
+        },
+        "per_yard": {"type": "number", "description": "Extra points per yard of the event (Sleeper fgm_yds)."},
+        "positions": {"$ref": "#/$defs/positions"},
+        "source_key": {"type": "string"}
+      }
+    }
+  }
+}

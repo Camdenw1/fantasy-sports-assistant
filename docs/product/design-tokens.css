@@ -1,0 +1,270 @@
+/* ==========================================================================
+   Fantasy Manager — design tokens
+   --------------------------------------------------------------------------
+   Drop-in custom properties. Light is the default; dark applies from the OS
+   setting unless the page forces a theme with <html data-theme="light|dark">.
+   Rationale and usage rules live in docs/product/design.md.
+
+   Naming:  --color-*   raw semantic colors (never reference hex in components)
+            --pos-*     position chips  (fg = text/icon, bg = fill)
+            --status-*  roster / recommendation states
+            --fresh-*   data-freshness states
+            --space-*, --radius-*, --shadow-*, --text-*  scales
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* ---- Type ------------------------------------------------------------ */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  /* Numbers use the sans face with tabular figures; mono is for ids/timestamps. */
+  --num: tabular-nums lining-nums;
+
+  /* size / line-height pairs. 16px body keeps iOS from zooming on inputs. */
+  --text-xs: 0.6875rem;  --lh-xs: 1rem;     /* 11px  table header, meta   */
+  --text-sm: 0.8125rem;  --lh-sm: 1.25rem;  /* 13px  table cells, reasons */
+  --text-md: 0.9375rem;  --lh-md: 1.375rem; /* 15px  body, player names   */
+  --text-lg: 1.125rem;   --lh-lg: 1.5rem;   /* 18px  card titles          */
+  --text-xl: 1.375rem;   --lh-xl: 1.75rem;  /* 22px  page title           */
+  --text-2xl: 1.75rem;   --lh-2xl: 2.125rem;/* 28px  hero number (score)  */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --tracking-tight: -0.011em;
+  --tracking-label: 0.04em; /* small uppercase labels only */
+
+  /* ---- Space (4px grid) ------------------------------------------------ */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --gutter: 16px;              /* page side padding on phones */
+  --content-max: 1200px;
+
+  /* ---- Density (tables & lists) ---------------------------------------- */
+  --row-h-compact: 36px;       /* desktop draft board               */
+  --row-h-default: 44px;       /* lists, lineup rows                 */
+  --row-h-touch: 52px;         /* phone rows w/ two lines            */
+  --tap-min: 44px;             /* minimum hit area, every control    */
+  --cell-pad-x: 8px;
+  --cell-pad-y: 6px;
+
+  /* ---- Radius ---------------------------------------------------------- */
+  --radius-xs: 3px;            /* chips, badges */
+  --radius-sm: 6px;            /* inputs, buttons */
+  --radius-md: 10px;           /* cards */
+  --radius-lg: 14px;           /* sheets, dialogs */
+  --radius-pill: 999px;
+
+  /* ---- Motion ---------------------------------------------------------- */
+  --ease: cubic-bezier(.2, .6, .2, 1);
+  --dur-fast: 120ms;
+  --dur-med: 200ms;
+
+  /* ---- Surfaces & text (light) ----------------------------------------- */
+  --color-bg: #FAF9F6;         /* warm paper — kept from the draft board */
+  --color-surface: #FFFFFF;
+  --color-surface-2: #F4F2ED;  /* hover, zebra, inset wells */
+  --color-surface-3: #ECE9E2;  /* pressed, selected-neutral */
+  --color-border: #E6E2D9;
+  --color-border-strong: #CFC8BB;
+  --color-text: #1E252C;
+  --color-text-2: #58616B;     /* secondary — 6.0:1 on bg */
+  --color-text-3: #666E78;     /* tertiary / meta — 4.9:1 on bg, 4.6:1 on surface-2 */
+  --color-text-inverse: #FFFFFF;
+  --color-focus: #2F6E9E;
+  --color-overlay: rgb(20 24 28 / 0.40);
+
+  /* Brand / primary action — the board's green, deepened for AA on white. */
+  --color-accent: #256B4D;
+  --color-accent-hover: #1D5A40;
+  --color-accent-soft: #E4F1EA;
+  --color-on-accent: #FFFFFF;
+
+  /* Generic feedback */
+  --color-positive: #256B4D;   --color-positive-bg: #E4F1EA;  --color-positive-border: #B9DCCB;
+  --color-negative: #A83F29;   --color-negative-bg: #FAE7E1;  --color-negative-border: #EFC6B8;
+  --color-caution: #8A5F0F;    --color-caution-bg: #FBF1DC;   --color-caution-border: #EBD6A6;
+  --color-info: #2A628D;       --color-info-bg: #E6EFF6;      --color-info-border: #C3D8E8;
+  --color-neutral: #58616B;    --color-neutral-bg: #EFEDE8;   --color-neutral-border: #DAD5CB;
+
+  /* ---- Lineup / recommendation status --------------------------------- */
+  /* Every status pairs color with an icon + word; color is never the only cue. */
+  --status-start-fg: var(--color-positive);   --status-start-bg: var(--color-positive-bg);
+  --status-sit-fg: var(--color-neutral);      --status-sit-bg: var(--color-neutral-bg);
+  --status-swap-fg: var(--color-info);        --status-swap-bg: var(--color-info-bg);     /* suggested move */
+  --status-q-fg: var(--color-caution);        --status-q-bg: var(--color-caution-bg);     /* Questionable */
+  --status-d-fg: #9A4A12;                     --status-d-bg: #FBE8D6;                     /* Doubtful */
+  --status-out-fg: var(--color-negative);     --status-out-bg: var(--color-negative-bg);  /* Out / IR / PUP / Sus */
+  --status-bye-fg: var(--color-neutral);      --status-bye-bg: var(--color-neutral-bg);
+  --status-empty-fg: var(--color-negative);                                            /* empty starter slot */
+
+  /* Draft-board tags (were SLEEPER / VALUE / FADE) */
+  --tag-value-fg: var(--color-info);          --tag-value-bg: var(--color-info-bg);
+  --tag-sleeper-fg: var(--color-positive);    --tag-sleeper-bg: var(--color-positive-bg);
+  --tag-fade-fg: var(--color-negative);       --tag-fade-bg: var(--color-negative-bg);
+
+  /* Survival odds ("Lasts") and edge numbers */
+  --odds-hi: var(--color-positive);
+  --odds-mid: var(--color-caution);
+  --odds-lo: var(--color-negative);
+
+  /* ---- Positions (kept from the board, text darkened to AA) ----------- */
+  --pos-qb-bg: #DDEBF5;  --pos-qb-fg: #1D5580;
+  --pos-rb-bg: #DFEEE6;  --pos-rb-fg: #1F6247;
+  --pos-wr-bg: #F7EEDA;  --pos-wr-fg: #7A5510;
+  --pos-te-bg: #EEE5F4;  --pos-te-fg: #6A3E8A;
+  --pos-k-bg:  #EEEDE7;  --pos-k-fg:  #52554C;
+  --pos-dst-bg:#E4EBEF;  --pos-dst-fg:#3A5566;
+  --pos-flex-bg:#EFEDE8; --pos-flex-fg:#58616B;  /* FLEX / W-T / SF / BN slot labels */
+
+  /* ---- Tiers ----------------------------------------------------------- */
+  /* Tiers are separators, not colors. One accent, alternating quiet bands. */
+  --tier-label: var(--color-accent);
+  --tier-rule: var(--color-border-strong);
+  --tier-band-odd: transparent;
+  --tier-band-even: rgb(30 37 44 / 0.018);
+
+  /* ---- Data freshness --------------------------------------------------- */
+  --fresh-ok: var(--color-positive);          /* < 6h: a dot, nothing more     */
+  --fresh-aging-fg: var(--color-caution);  --fresh-aging-bg: var(--color-caution-bg);  /* 6-24h   */
+  --fresh-stale-fg: var(--color-negative); --fresh-stale-bg: var(--color-negative-bg); /* > 24h / failed */
+
+  /* ---- League identity -------------------------------------------------- */
+  /* Neutral hues the user assigns per league. NOT platform brand colors —
+     the platform is always written out as a word next to the league name. */
+  --league-1: #256B4D;  /* green  */
+  --league-2: #2A628D;  /* blue   */
+  --league-3: #8A5F0F;  /* ochre  */
+  --league-4: #6A3E8A;  /* violet */
+  --league-5: #A83F29;  /* brick  */
+
+  /* ---- Elevation -------------------------------------------------------- */
+  /* Mostly borders. Shadows only for things that float over content. */
+  --shadow-0: none;
+  --shadow-1: 0 1px 2px rgb(30 37 44 / 0.06);                                   /* cards */
+  --shadow-2: 0 4px 12px rgb(30 37 44 / 0.08), 0 1px 3px rgb(30 37 44 / 0.06);  /* sticky bars, menus */
+  --shadow-3: 0 12px 32px rgb(30 37 44 / 0.16);                                 /* sheets, dialogs */
+
+  /* ---- Layers ---------------------------------------------------------- */
+  --z-sticky: 20;
+  --z-nav: 30;
+  --z-menu: 40;
+  --z-sheet: 50;
+  --z-toast: 60;
+}
+
+/* ---- Dark ---------------------------------------------------------------- */
+/* Same tokens, re-pointed. Components never branch on theme. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --color-bg: #121416;
+    --color-surface: #1A1D21;
+    --color-surface-2: #22262B;
+    --color-surface-3: #2A2F35;
+    --color-border: #2C3137;
+    --color-border-strong: #3D444C;
+    --color-text: #E9E7E2;
+    --color-text-2: #AEB5BD;
+    --color-text-3: #8D959E;
+    --color-text-inverse: #121416;
+    --color-focus: #7DB4E0;
+    --color-overlay: rgb(0 0 0 / 0.55);
+
+    --color-accent: #5FBF92;
+    --color-accent-hover: #78CCA4;
+    --color-accent-soft: #1C3328;
+    --color-on-accent: #0E1A14;
+
+    --color-positive: #6CC69B;  --color-positive-bg: #1B3127;  --color-positive-border: #2A4D3C;
+    --color-negative: #F08E78;  --color-negative-bg: #3A211B;  --color-negative-border: #5A3228;
+    --color-caution: #E2B45A;   --color-caution-bg: #352A14;   --color-caution-border: #54421F;
+    --color-info: #82B6E0;      --color-info-bg: #1A2A38;      --color-info-border: #2B4357;
+    --color-neutral: #AEB5BD;   --color-neutral-bg: #262A2F;   --color-neutral-border: #3A4047;
+
+    --status-d-fg: #F0A56A;     --status-d-bg: #3A2716;
+
+    --pos-qb-bg: #1B2C3B;  --pos-qb-fg: #8EC0E6;
+    --pos-rb-bg: #1B3027;  --pos-rb-fg: #86CFA8;
+    --pos-wr-bg: #352B17;  --pos-wr-fg: #E3BF72;
+    --pos-te-bg: #2C2236;  --pos-te-fg: #C9A5E4;
+    --pos-k-bg:  #2A2B27;  --pos-k-fg:  #C2C4B8;
+    --pos-dst-bg:#212C33;  --pos-dst-fg:#A2BCCB;
+    --pos-flex-bg:#262A2F; --pos-flex-fg:#AEB5BD;
+
+    --tier-band-even: rgb(255 255 255 / 0.022);
+
+    --league-1: #5FBF92;
+    --league-2: #7DB4E0;
+    --league-3: #E2B45A;
+    --league-4: #C9A5E4;
+    --league-5: #F08E78;
+
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-2: 0 4px 12px rgb(0 0 0 / 0.45);
+    --shadow-3: 0 12px 32px rgb(0 0 0 / 0.6);
+  }
+}
+
+/* Forced dark (user toggle). Keep in sync with the block above. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #121416;
+  --color-surface: #1A1D21;
+  --color-surface-2: #22262B;
+  --color-surface-3: #2A2F35;
+  --color-border: #2C3137;
+  --color-border-strong: #3D444C;
+  --color-text: #E9E7E2;
+  --color-text-2: #AEB5BD;
+  --color-text-3: #8D959E;
+  --color-text-inverse: #121416;
+  --color-focus: #7DB4E0;
+  --color-overlay: rgb(0 0 0 / 0.55);
+
+  --color-accent: #5FBF92;
+  --color-accent-hover: #78CCA4;
+  --color-accent-soft: #1C3328;
+  --color-on-accent: #0E1A14;
+
+  --color-positive: #6CC69B;  --color-positive-bg: #1B3127;  --color-positive-border: #2A4D3C;
+  --color-negative: #F08E78;  --color-negative-bg: #3A211B;  --color-negative-border: #5A3228;
+  --color-caution: #E2B45A;   --color-caution-bg: #352A14;   --color-caution-border: #54421F;
+  --color-info: #82B6E0;      --color-info-bg: #1A2A38;      --color-info-border: #2B4357;
+  --color-neutral: #AEB5BD;   --color-neutral-bg: #262A2F;   --color-neutral-border: #3A4047;
+
+  --status-d-fg: #F0A56A;     --status-d-bg: #3A2716;
+
+  --pos-qb-bg: #1B2C3B;  --pos-qb-fg: #8EC0E6;
+  --pos-rb-bg: #1B3027;  --pos-rb-fg: #86CFA8;
+  --pos-wr-bg: #352B17;  --pos-wr-fg: #E3BF72;
+  --pos-te-bg: #2C2236;  --pos-te-fg: #C9A5E4;
+  --pos-k-bg:  #2A2B27;  --pos-k-fg:  #C2C4B8;
+  --pos-dst-bg:#212C33;  --pos-dst-fg:#A2BCCB;
+  --pos-flex-bg:#262A2F; --pos-flex-fg:#AEB5BD;
+
+  --tier-band-even: rgb(255 255 255 / 0.022);
+
+  --league-1: #5FBF92;
+  --league-2: #7DB4E0;
+  --league-3: #E2B45A;
+  --league-4: #C9A5E4;
+  --league-5: #F08E78;
+
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-2: 0 4px 12px rgb(0 0 0 / 0.45);
+  --shadow-3: 0 12px 32px rgb(0 0 0 / 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur-med: 0ms; }
+}

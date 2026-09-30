@@ -25,7 +25,7 @@ import html, json, pathlib, re, sys, time, urllib.request, urllib.error
 HERE = pathlib.Path(__file__).parent
 CACHE = HERE / "pubranks_cache.json"
 TTL = 6 * 3600          # refetch at most every 6 hours
-UA = {"User-Agent": "sleeper-draft-guide/1.0 (personal fantasy draft board)"}
+UA = {"User-Agent": "fantasy-sports-assistant/1.0 (personal fantasy draft board)"}
 
 
 def _get(url, headers=None, timeout=30):

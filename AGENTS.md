@@ -1,5 +1,18 @@
 # Project context
 
+This repository is growing from a 2026 fantasy football draft board into a
+personal, cross-platform fantasy sports dashboard. The intended home screen
+surfaces league actions in one place; lineup changes and bet tracking are future
+capabilities, not features of the current board. `README.md` describes what is
+implemented. `docs/product/` and `prototypes/` contain newer proposals and
+experiments; check Git status before touching them because they may be another
+assistant's unfinished work.
+
+Codex and Claude Code share this repository. Keep `AGENTS.md` and `CLAUDE.md`
+aligned on project rules. Prefer a focused branch per task, and use separate
+worktrees if two tasks overlap. Preserve uncommitted work, review changes, and
+hand off the branch and remaining limitations before the next assistant continues.
+
 Fantasy football draft board with two switchable profiles: Camden's 12-team
 half-PPR Sleeper league and Dad's unusual weekly-bucket league. Camden opens
 `draft-board-2026.html` in a browser during drafts.
@@ -220,3 +233,25 @@ The GitHub Actions workflow has a hard cutoff at **2026-09-07 19:40:09 UTC**
 (12:40:09 PM PDT). At or after that instant, scheduled and manual runs are clean
 no-ops and cannot rewrite generated data. Camden requested this one-week cutoff
 on 31 August 2026.
+
+## Dashboard design and reliability
+
+Camden's priority is robust everyday use. Read `docs/product/design-brief.md` for
+the current red scorecard direction and the canonical personal design reference.
+The local dashboard uses background refresh jobs, dated browser/server snapshots,
+and an offline shell. Cache fallback must never acquire a new source timestamp.
+Missing roster projections withhold totals and suggested lineup columns.
+`python3 scripts/dashboard-service.py status` checks the macOS local service;
+install/uninstall are documented in README. It binds only to localhost. Preserve
+its availability when updating the running server, and verify failure/recovery
+paths when modifying refresh logic. Generated draft data remains frozen.
+
+## Current season player view
+
+`app/players.html`, `app/season.js`, and `app/season.py` implement ROS projection
+rankings from current Sleeper weekly data. Keep this independent from the frozen
+draft pipeline. Standard half-PPR, remaining full weeks through Week 17, current
+week excluded, skill positions only. No claimed expert consensus, trade values,
+or custom scoring. Preserve source dates and complete-week coverage checks;
+placeholder ADP rows are not projections. Red (#980F26), with translucent fills and markers, is the subtle
+project accent, with a white/charcoal canvas.

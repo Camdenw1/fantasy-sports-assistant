@@ -3,8 +3,8 @@
   "generated_at": "2026-09-25T17:01:31.284692+00:00",
   "platform": "sleeper",
   "league": {
-    "id": "1389345251432370176",
-    "name": "DAYGO",
+    "id": "100000000000000001",
+    "name": "Sample League",
     "season": "2026",
     "week": 3,
     "teams": 12,
@@ -40,10 +40,10 @@
   },
   "team": {
     "roster_id": 5,
-    "name": "Wam Bam Cam"
+    "name": "Sample Team"
   },
   "opponent": {
-    "team_name": "ZEBRAHIM",
+    "team_name": "Sample Opponent",
     "projected": 128.4,
     "points_so_far": 21.5,
     "win_prob_current": 0.524,
@@ -772,7 +772,7 @@
   ],
   "apply": {
     "method": "deep_link",
-    "url": "https://sleeper.com/leagues/1389345251432370176/team",
+    "url": "https://sleeper.com/leagues/100000000000000001/team",
     "note": "Sleeper's public API is read-only; lineup writes need the app/site."
   }
 }

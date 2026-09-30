@@ -16,8 +16,8 @@ function savedLeagues(value) {
 const connection = stored("fantasy-sleeper-connection", {});
 const manualKey = "fantasy-manual-leagues-v1";
 const cached = stored("fantasy-last-lineups-v1", {});
-const usableCache = cached.username === (connection.username || "camdenw1");
-const state = {username: connection.username || "camdenw1", selected: connection.leagueId ? "s:" + connection.leagueId : "",
+const usableCache = cached.username === (connection.username || "");
+const state = {username: connection.username || "", selected: connection.leagueId ? "s:" + connection.leagueId : "",
   reports: usableCache && validReports(cached.reports) ? cached.reports : [], freshness: usableCache ? cached.freshness : null,
   manual: savedLeagues(stored(manualKey, [])), week: null, currentWeek: null, season: null, loading: false,
   engineVersion: cached.engine_version || 0, sample: false, view: "home", lastRefresh: 0, editing: null, sleeperIds: []};
@@ -535,7 +535,7 @@ $("username").value = state.username;
 $("manual-week").value = activeWeek() || 1;
 for (let week = 1; week <= 18; week++) { const option = node("option", "", week); option.value = week; $("week").append(option); }
 state.sleeperIds = state.reports.map(report => report.league.id);
-populateLeagues(); setView(location.hash.slice(1) || "home"); refresh(state.username, false);
+populateLeagues(); setView(location.hash.slice(1) || "home"); if (state.username) refresh(state.username, false);
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {
   // The normal interface still works when browser policy disallows offline storage.

@@ -4,7 +4,8 @@ Personal reference: `/Users/camdenweber/Documents/Second Brain/Design/Personal W
 
 - Priority: dependable everyday use, then clear information, then visual character.
 - Identity: a personal fantasy scorecard; white surfaces, neutral charcoal text,
-  dark maroon (`#741B2B`) and pale maroon selected fills (`#F8EFF1`).
+  red (`#B30909`) with translucent selected fills (6–8%) and subtle markers (55%).
+  Use alpha on backgrounds and borders rather than fading whole controls or labels.
 - Type: sturdy Georgia page headings; system sans-serif for controls, players,
   explanations, and tabular numbers. Balanced spacing, not compressed rows.
 - Motif: official team marks beside player names. Assets are local, have fixed

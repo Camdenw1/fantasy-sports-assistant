@@ -11,18 +11,18 @@
 <body>
   <div class="app-frame">
     <aside class="sidebar">
-      <a class="brand" href="#home"><span class="brand-mark" aria-hidden="true">F</span><span>Fantasy Sports<small>Your season, together.</small></span></a>
+      <a class="brand" href="#home"><span class="brand-mark" aria-hidden="true">F</span><span>Fantasy Sports<small></small></span></a>
       <nav class="navigation" aria-label="Main navigation">
-        <button id="home-tab" class="active" aria-pressed="true"><span aria-hidden="true">⌂</span>Home</button>
-        <button id="leagues-tab" aria-pressed="false"><span aria-hidden="true">▤</span>Leagues</button>
-        <button id="lineup-tab" aria-pressed="false"><span aria-hidden="true">≡</span>Lineup</button>
-        <a href="/draft-board-2026.html" id="board-link"><span aria-hidden="true">▦</span>Draft board<span class="nav-note">2026</span></a>
+        <button id="home-tab" class="active" aria-pressed="true">Home</button>
+        <button id="leagues-tab" aria-pressed="false">Leagues</button>
+        <button id="lineup-tab" aria-pressed="false">Lineup</button>
+        <a href="/draft-board-2026.html" id="board-link">Players</a>
       </nav>
-      <div class="sidebar-bottom"><span class="local-dot"></span>Personal workspace<small>Saved on this device</small></div>
+
     </aside>
     <div class="workspace">
       <header class="page-header">
-        <div><p class="eyebrow" id="season-context">Football · 2026 season</p><h1 id="page-title">Your week, in view.</h1><p class="intro" id="page-description">The lineup decisions that deserve your attention.</p></div>
+        <div><p class="eyebrow" id="season-context">Football · 2026 season</p><h1 id="page-title">Your week, in view.</h1><p class="intro" id="page-description" hidden></p></div>
         <div class="header-actions"><button id="manage-leagues" class="quiet">Add league</button><button id="refresh" disabled>↻ Refresh</button></div>
       </header>
       <div class="context-bar">
@@ -61,9 +61,9 @@
             <div class="manual-buttons"><button type="button" id="preview-import" class="quiet">Preview roster</button><button type="submit">Save snapshot</button><button type="button" id="manual-cancel" class="text-button">Cancel</button></div>
           </form>
         </details>
-        <div class="sample-option"><span>Want to explore without connecting?</span><button id="sample" class="text-button">View a saved injury example →</button></div>
+        <details class="sample-option"><summary>Saved demo</summary><button id="sample" class="text-button">View injury example</button></details>
       </section>
-      <footer>Recommendations are estimates. Make changes in your league’s app, then refresh to confirm.</footer>
+      <footer>Make lineup changes in your league’s app. Refresh here to confirm.</footer>
     </div>
   </div>
 </body>

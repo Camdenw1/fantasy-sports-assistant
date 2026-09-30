@@ -6,7 +6,7 @@ what needs attention across leagues, then let Camden reach the relevant lineup,
 waiver, matchup, draft, or bet without opening every app to find it.
 
 **Current state:** the 2026 draft board has Sleeper and Dad league profiles.
-The local dashboard can read all fantasy leagues returned for a Sleeper username
+The red scorecard workspace uses locally bundled NFL team marks and can read all fantasy leagues returned for a Sleeper username
 and show ESPN/CBS league snapshots in one Home view. The redesigned workspace
 has separate Home, Leagues, and Lineup screens, plus a refreshed draft archive. The broader product
 plans remain under `docs/product/`. Lineup changes and bet placement are not
@@ -18,7 +18,20 @@ archive, not a current rest-of-season ranking.
 
 ### First live dashboard slice
 
-Run the local, read-only dashboard from this repository:
+On Camden's Mac, the dashboard is installed as a **local service**. It starts at
+login and restarts if its process exits. Open http://127.0.0.1:8765/.
+
+~~~bash
+python3 scripts/dashboard-service.py status
+~~~
+
+To install the service on another Mac, run `python3 scripts/dashboard-service.py install`.
+Remove automatic startup with `python3 scripts/dashboard-service.py uninstall`.
+Logs and dated report snapshots stay in gitignored `app/.cache/`. The service
+listens only on localhost. If the repository or Python installation moves,
+reinstall the service so its saved paths are updated.
+
+For a temporary session on any supported computer:
 
 ~~~bash
 python3 app/server.py
@@ -30,8 +43,9 @@ Choose a league to compare current and recommended starters. **Leagues** contain
 platform setup and imports:
 
 - **Sleeper:** discovered fantasy leagues refresh together. After a successful read,
-  the browser retains the last lineup report with its original timestamps, so a
-  failed refresh does not leave Home empty. Stale and incomplete inputs stay flagged.
+  the browser and server retain the last lineup report with its original timestamps, so a
+  failed refresh does not leave Home empty. Refresh jobs run in the background;
+  concurrent requests share one calculation, and fresh reports are reused for 60 seconds. Stale and incomplete inputs stay flagged.
 - **ESPN:** paste a public football league/team URL and choose your team number.
   The local server reads roster, team, and settings views without credentials.
   Review the imported roster and week before saving a snapshot. This adapter is
@@ -51,7 +65,7 @@ The server runs the existing start/sit engine and
 fetches public Sleeper league data, ESPN public projections and the NFL
 scoreboard. The page does not submit lineup changes. Its saved example is a
 historical injury scenario, clearly labelled as such. The server binds only to
-this computer; keep it running while using the page.
+this computer; the installed Mac service manages its lifetime.
 
 The full Sleeper player dump stays in the gitignored prototype cache. Its
 timestamp and the live roster fetch time are shown in the page. Missing
@@ -263,3 +277,21 @@ redesign, import progress, source review, and next player-ranking milestone.
 python3 -m unittest discover -s app/tests
 node app/tests/roster-import.test.js
 ~~~
+
+## Reliability and offline behavior
+
+After loading the dashboard once, supported browsers cache the interface, draft
+archive, and team marks. An outage preserves navigation and saved reports; the
+page explicitly reports refresh failure. Offline mode cannot discover new leagues,
+import a public ESPN roster, or produce fresh recommendations. Browser cache
+clearing or first use still requires the local service. Stale data keeps its
+original date; it never becomes “fresh” because it was read from cache.
+
+Incomplete roster projections or an outdated recommendation model withhold the
+suggested lineup column. The optimizer uses injury-adjusted expected points and
+never credits a player with a hypothetical substitute already used elsewhere in
+the lineup. This fixes a specific double-counting bug; predictive accuracy still
+requires backtesting.
+
+Design reference and project choices: [design brief](docs/product/design-brief.md).
+Verification and handoff: [reliability iteration](docs/product/iteration-2026-09-30.md).

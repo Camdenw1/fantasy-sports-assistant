@@ -13,12 +13,14 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 from espn import import_league
+from runtime import RefreshStore
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
 ENGINE = ROOT / "prototypes" / "start-sit" / "startsit.py"
 SAMPLE = ROOT / "prototypes" / "start-sit" / "sample-output-week3-whatif.json"
 PLAYER_CACHE = ROOT / "prototypes" / "start-sit" / ".cache" / "players_nfl.json"
+REFRESH = RefreshStore(HERE / ".cache" / "reports", version=2)
 UA = {"User-Agent": "fantasy-sports-assistant/local-dashboard"}
 USERNAME = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
 LEAGUE_ID = re.compile(r"^[0-9]{1,24}$")
@@ -66,7 +68,7 @@ def report(username, league_id=None, week=None):
             cmd += ["--league", league_id]
         if week is not None:
             cmd += ["--week", str(week)]
-        result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=180)
+        result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=75)
         if result.returncode or not output.exists():
             detail = (result.stderr or result.stdout).strip().splitlines()
             raise RuntimeError(detail[-1] if detail else "Start/sit data unavailable.")
@@ -79,12 +81,22 @@ def report(username, league_id=None, week=None):
         raise ValueError("No current Sleeper roster found for this username.")
     cache_time = (dt.datetime.fromtimestamp(PLAYER_CACHE.stat().st_mtime, dt.timezone.utc)
                   .isoformat() if PLAYER_CACHE.exists() else None)
-    return {"reports": reports, "freshness": {
+    return {"engine_version": 2, "reports": reports, "freshness": {
         "roster_fetched_at": reports[0]["generated_at"],
         "player_list_fetched_at": cache_time,
         "projections_fetched_at": (reports[0]["generated_at"]
                                    if reports[0]["sources"]["projections"] else None),
     }}
+
+
+def refresh_key(username, week):
+    if not isinstance(username, str) or not USERNAME.fullmatch(username):
+        raise ValueError("Enter a Sleeper username (letters, numbers, _ or -).")
+    if week is not None:
+        if isinstance(week, bool) or not str(week).isdigit() or not 1 <= int(week) <= 18:
+            raise ValueError("Week must be between 1 and 18.")
+        week = int(week)
+    return username.lower(), week
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -99,6 +111,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/api/refresh":
+            try:
+                query = parse_qs(parsed.query)
+                key = refresh_key(query.get("username", [""])[0], query.get("week", [None])[0])
+                self.reply(200, REFRESH.read(key))
+            except ValueError as exc:
+                self.reply(400, {"error": str(exc)})
+            return
         if parsed.path == "/api/espn":
             try:
                 query = parse_qs(parsed.query)
@@ -131,21 +151,23 @@ class Handler(BaseHTTPRequestHandler):
             path = ROOT / parsed.path.lstrip("/")
         else:
             path = (HERE / ("index.html" if parsed.path == "/" else parsed.path.lstrip("/"))).resolve()
-        if (path.parent not in {HERE, ROOT} or not path.is_file()
-                or path.suffix not in {".html", ".css", ".js"}):
+        is_logo = path.parent == HERE / "assets" / "teams" and path.suffix == ".png"
+        if (not path.is_file() or (not is_logo and
+                (path.parent not in {HERE, ROOT} or path.suffix not in {".html", ".css", ".js"}))):
             self.send_error(404)
             return
         content_type = {".html": "text/html", ".css": "text/css",
-                        ".js": "text/javascript"}[path.suffix]
+                        ".js": "text/javascript", ".png": "image/png"}[path.suffix]
         body = path.read_bytes()
         self.send_response(200)
-        self.send_header("Content-Type", content_type + "; charset=utf-8")
+        self.send_header("Content-Type", content_type if is_logo else content_type + "; charset=utf-8")
+        self.send_header("Cache-Control", "public, max-age=86400" if is_logo else "no-cache")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 
     def do_POST(self):
-        if urlparse(self.path).path not in {"/api/lineup", "/api/lineups"}:
+        if urlparse(self.path).path not in {"/api/lineup", "/api/lineups", "/api/refresh"}:
             self.send_error(404)
             return
         try:
@@ -153,6 +175,12 @@ class Handler(BaseHTTPRequestHandler):
             if not 0 < size <= 1024:
                 raise ValueError("Invalid request size.")
             payload = json.loads(self.rfile.read(size))
+            if not isinstance(payload, dict):
+                raise ValueError("Invalid request body.")
+            if urlparse(self.path).path == "/api/refresh":
+                key = refresh_key(payload.get("username", ""), payload.get("week"))
+                self.reply(200, REFRESH.request(key, lambda: report(key[0], week=key[1]), payload.get("force") is True))
+                return
             league_id = (str(payload.get("league_id", ""))
                          if urlparse(self.path).path == "/api/lineup" else None)
             result = report(payload.get("username", ""), league_id, payload.get("week"))

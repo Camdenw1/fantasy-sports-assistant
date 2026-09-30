@@ -22,6 +22,8 @@ Pipeline (see docs/product/start-sit.md for the design):
 
 Never writes to Sleeper. Setting a lineup needs an authenticated session.
 """
+import uuid
+import hashlib
 import argparse
 import datetime as dt
 import json
@@ -39,19 +41,23 @@ SIMS = 4000
 RNG = random.Random(20260925)
 
 # -------------------------------------------------------------------- fetch --
-def get(url, headers=None, timeout=60, cache_s=0, ua=True):
+def get(url, headers=None, timeout=15, cache_s=0, ua=True):
     key = None
     if cache_s:
         CACHE.mkdir(exist_ok=True)
-        key = CACHE / (str(abs(hash(url)) % 10**12) + ".json")
+        key = CACHE / (hashlib.sha256(url.encode()).hexdigest() + ".json")
         if key.exists() and time.time() - key.stat().st_mtime < cache_s:
-            return json.loads(key.read_text())
+            try: return json.loads(key.read_text())
+            except (ValueError, OSError): pass
     req = urllib.request.Request(url, headers={**(UA if ua else {}), **(headers or {})})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         body = r.read().decode("utf-8", "replace")
+    data = json.loads(body)
     if key:
-        key.write_text(body)
-    return json.loads(body)
+        temporary = key.with_name(key.name + "." + uuid.uuid4().hex + ".tmp")
+        temporary.write_text(body)
+        temporary.replace(key)
+    return data
 
 
 SL = "https://api.sleeper.app/v1"
@@ -63,9 +69,12 @@ def sleeper_players():
     CACHE.mkdir(exist_ok=True)
     f = CACHE / "players_nfl.json"
     if f.exists() and time.time() - f.stat().st_mtime < 24 * 3600:
-        return json.loads(f.read_text())
-    d = get(f"{SL}/players/nfl", timeout=120)
-    f.write_text(json.dumps(d))
+        try: return json.loads(f.read_text())
+        except (ValueError, OSError): pass
+    d = get(f"{SL}/players/nfl", timeout=30)
+    temporary = f.with_name(f.name + "." + uuid.uuid4().hex + ".tmp")
+    temporary.write_text(json.dumps(d))
+    temporary.replace(f)
     return d
 
 
@@ -366,6 +375,10 @@ def assign(slots, pool, weight):
     return [cols[j] for j in hungarian(cost)]
 
 
+def choose_starters(slots, pool):
+    return assign(slots, pool, lambda slot, player: player['value'] if eligible(slot, player) else None)
+
+
 def eligible(slot, pl):
     return bool(SLOT_ELIG.get(slot, {slot}) & set(pl["elig"]))
 
@@ -445,19 +458,11 @@ def run_league(lg, week, me_id, P, sproj, eproj, games, now, schedule_source="es
     pool = [x for x in pl.values() if not x["locked"] and x["id"] not in
             {c["id"] for c in fixed.values()}]
 
-    # late-swap hedge: a Questionable player whose game hasn't started can be
-    # swapped at inactives (kickoff - 90 min) if a same-or-later bench option
-    # exists for a FLEX-type slot, so he's worth p*mean + (1-p)*backup.
-    def eff(x, others):
-        if x["injury"] != "Questionable" or not x["kickoff"]:
-            return x["value"]
-        alts = [o["value"] for o in others if o is not x and o["kickoff"]
-                and o["kickoff"] >= x["kickoff"] and set(o["elig"]) & {"RB", "WR", "TE"}]
-        return x["value"] + (1 - x["play_prob"]) * (max(alts) if alts else 0) * 0.5
-
+    # Choose the legal lineup by injury-adjusted expected points. A speculative
+    # late-swap hedge used to credit a questionable player with another starter's
+    # points, double-counting an unavailable backup and selecting worse lineups.
     open_slots = [slots[i] for i in open_idx]
-    first = assign(open_slots, pool,
-                   lambda s, x: eff(x, pool) if eligible(s, x) else None)
+    first = choose_starters(open_slots, pool)
     chosen = [x for x in first if x]
     # pass 2: same starters, re-seated -- points are unchanged, so optimise
     # (a) GTD players into the widest slot (a flex can be backfilled by more
@@ -709,10 +714,10 @@ def main():
     a = ap.parse_args()
 
     now = dt.datetime.now(dt.timezone.utc)
-    state = get(f"{SL}/state/nfl")
+    state = get(f"{SL}/state/nfl", cache_s=60)
     season, week = int(state["season"]), a.week or int(state["display_week"] or state["week"])
-    user = get(f"{SL}/user/{a.username}")
-    leagues = get(f"{SL}/user/{user['user_id']}/leagues/nfl/{season}")
+    user = get(f"{SL}/user/{a.username}", cache_s=300)
+    leagues = get(f"{SL}/user/{user['user_id']}/leagues/nfl/{season}", cache_s=60)
     if a.league:
         leagues = [l for l in leagues if l["league_id"] == a.league]
     print(f"{user['display_name']} · season {season} week {week} · {len(leagues)} Sleeper league(s)",

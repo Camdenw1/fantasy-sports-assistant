@@ -2,14 +2,25 @@ const $ = id => document.getElementById(id);
 function stored(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
 }
+function validReports(value) {
+  return Array.isArray(value) && value.every(report => report && report.schema === "startsit/v1" &&
+    report.league?.id && typeof report.league.name === "string" && report.league.scoring_fingerprint &&
+    report.team && Array.isArray(report.slots) && Array.isArray(report.swaps) && Array.isArray(report.alerts) &&
+    report.sources && Array.isArray(report.sources.projections) && report.totals && report.apply?.url);
+}
+function savedLeagues(value) {
+  return Array.isArray(value) ? value.filter(league => league && typeof league.id === "string" &&
+    typeof league.name === "string" && Array.isArray(league.starters) && league.starters.every(row =>
+      row && typeof row.player === "string" && typeof row.slot === "string" && typeof row.status === "string")) : [];
+}
 const connection = stored("fantasy-sleeper-connection", {});
 const manualKey = "fantasy-manual-leagues-v1";
 const cached = stored("fantasy-last-lineups-v1", {});
 const usableCache = cached.username === (connection.username || "camdenw1");
 const state = {username: connection.username || "camdenw1", selected: connection.leagueId ? "s:" + connection.leagueId : "",
-  reports: usableCache && Array.isArray(cached.reports) ? cached.reports : [], freshness: usableCache ? cached.freshness : null,
-  manual: Array.isArray(stored(manualKey, [])) ? stored(manualKey, []) : [], week: null, currentWeek: null, season: null, loading: false,
-  sample: false, view: "home", lastRefresh: 0, editing: null, sleeperIds: []};
+  reports: usableCache && validReports(cached.reports) ? cached.reports : [], freshness: usableCache ? cached.freshness : null,
+  manual: savedLeagues(stored(manualKey, [])), week: null, currentWeek: null, season: null, loading: false,
+  engineVersion: cached.engine_version || 0, sample: false, view: "home", lastRefresh: 0, editing: null, sleeperIds: []};
 
 function node(tag, className = "", content = null) {
   const el = document.createElement(tag);
@@ -47,6 +58,7 @@ function activeWeek() { return state.sample ? state.reports[0]?.league.week :
 function quality(report) {
   const issues = [];
   if (state.sample) issues.push("Historical example");
+  if (state.engineVersion !== 2) issues.push("Recommendation model needs refresh");
   if (activeWeek() && report.league.week !== activeWeek()) issues.push("Roster is from a different week; refresh needed");
   if (reportGaps(report).length) issues.push("Missing projections: " + reportGaps(report).map(p => p.name).join(", "));
   if (report.sources.schedule !== "espn scoreboard") issues.push("Kickoff times unverified");
@@ -76,7 +88,7 @@ function card(label, title, body, kind, report) {
 }
 function sleeperItems(report) {
   const items = [], league = report.league.name;
-  if (activeWeek() && report.league.week !== activeWeek()) return items;
+  if (state.engineVersion !== 2 || (activeWeek() && report.league.week !== activeWeek())) return items;
   const gaps = reportGaps(report).length > 0;
   const changed = report.slots.filter(row => row.change && !row.locked);
   const forced = report.slots.filter(row => !row.locked &&
@@ -131,7 +143,7 @@ function leagueStrip() {
   for (const report of state.reports) {
     const issues = quality(report);
     const el = node("article", "card league-card");
-    add(el, node("span", "pill", "Sleeper · Week " + report.league.week),
+    add(el, node("span", "pill", "Sleeper"),
       node("h3", "", report.league.name),
       node("p", "meta", report.team.name + " · Updated " + age(state.freshness?.roster_fetched_at)));
     if (issues.length) el.append(node("span", "health-note", "△ " + issues.length +
@@ -162,11 +174,11 @@ function renderHome(main) {
   if (stale.length) issues.push(stale.map(league => league.name).join(", ") + ": manual snapshot over 24 hours old");
   const olderWeek = state.manual.filter(league => activeWeek() && league.week !== activeWeek());
   if (olderWeek.length) issues.push(olderWeek.map(league => league.name).join(", ") + ": snapshot from a different week");
-  main.append(node("h2", "", "What needs your attention"));
+  main.append(node("h2", "", "This week"));
   const items = [...state.reports.flatMap(sleeperItems), ...state.manual.flatMap(manualItems)]
     .sort((a, b) => a.priority - b.priority);
   if (!items.length) main.append(add(node("section", "card clear"), node("span", "clear-mark", issues.length ? "△" : "✓"),
-    add(node("div"), node("h3", "", issues.length ? "A few inputs need a check" : "No lineup change suggested"),
+    add(node("div"), node("h3", "", issues.length ? "Review before kickoff" : "Your lineup looks settled"),
       node("p", "", issues.length ? "Review the data checks below before treating your lineup as settled." :
         "Nothing stands out in the data we have. Check injuries again before kickoff."))));
   else items.forEach(item => main.append(item.element));
@@ -186,13 +198,26 @@ function playerCell(player) {
     [player.pos, player.team, player.injury, player.game_state === "bye" ? "BYE" : ""].filter(Boolean).join(" · ")));
   return cell;
 }
+function teamMark(team) {
+  const aliases = {JAC:"JAX",WAS:"WSH",LA:"LAR",ARZ:"ARI"};
+  team = aliases[team] || team;
+  if (!"ARI ATL BAL BUF CAR CHI CIN CLE DAL DEN DET GB HOU IND JAX KC LAC LAR LV MIA MIN NE NO NYG NYJ PHI PIT SEA SF TB TEN WSH".split(" ").includes(team)) return null;
+  const image = node("img", "team-logo");
+  image.src = "/assets/teams/" + team.toLowerCase() + ".png";
+  image.alt = ""; image.width = 32; image.height = 32; image.loading = "lazy";
+  image.addEventListener("error", () => { image.hidden = true; }, {once:true});
+  return image;
+}
 function playerBlock(player) {
   const block = node("div");
   if (!player) return add(block, node("span", "player-name", "Empty slot"));
-  add(block, node("span", "player-name", player.name),
+  block.className = "player-identity";
+  const mark = teamMark(player.team); if (mark) block.append(mark);
+  const copy = node("div", "player-copy");
+  add(copy, node("span", "player-name", player.name),
     node("span", "player-meta" + (inactive(player) ? " injury" : ""),
       [player.pos, player.team, player.injury, player.game_state === "bye" ? "Bye" : null].filter(Boolean).join(" · ")));
-  return block;
+  block.append(copy); return block;
 }
 function projected(player) {
   if (!player) return "—";
@@ -206,7 +231,7 @@ function renderSleeperLineup(main, report) {
        report.league.scoring_fingerprint.rec === 1 ? "PPR" : "League scoring")));
   const issues = quality(report);
   if (issues.length) main.append(node("div", "notice", issues.join(" · ") +
-    ". Confirm uncertain recommendations in Sleeper."));
+    (reportGaps(report).length ? ". Showing your roster; suggestions are paused until projections are complete." : ". Check uncertain inputs in Sleeper.")));
   const summary = node("section", "summary");
   const incomplete = reportGaps(report).length > 0;
   summary.append(add(node("div", "card"), node("strong", "metric", incomplete ? "Incomplete" :
@@ -216,23 +241,27 @@ function renderSleeperLineup(main, report) {
     node("strong", "metric", Math.round(report.opponent.win_prob_current * 100) + "% → " +
       Math.round(report.opponent.win_prob_recommended * 100) + "%"),
     node("span", "caption", "Win chance · model estimate")));
-  main.append(summary);
-  const list = node("section", "lineup-list");
+  if (!incomplete) main.append(summary);
+  const completed = report.slots.every(row => row.locked) || incomplete || state.engineVersion !== 2;
+  const list = node("section", "lineup-list" + (completed ? " completed" : ""));
   add(list, add(node("div", "lineup-head"), node("span", "", "Slot"), node("span", "", "Your lineup"),
-    node("span", "", "Suggested lineup"), node("span", "", "Points")));
+    node("span", "suggested-heading", "Suggested lineup"), node("span", "", report.slots.every(row => row.locked) ? "Points" : "Projected")));
   for (const row of report.slots) {
     const item = node("article", "lineup-row" + (row.change ? " changed" : ""));
     add(item, node("span", "slot-chip", row.slot.replace("REC_FLEX", "W/TE")),
-      playerBlock(row.current), playerBlock(row.recommended),
-      add(node("div", "lineup-points"), node("span", "", projected(row.current) + " → " + projected(row.recommended)),
+      playerBlock(row.current),
+      ...(completed ? [] : [playerBlock(row.recommended)]),
+      add(node("div", "lineup-points"), node("span", "", completed ? projected(row.current) : projected(row.current) + " → " + projected(row.recommended)),
         node("small", "", row.locked ? "Locked" : "Projected")));
-    add(item, node("div", "lineup-reason", row.locked ? "Game started · lineup locked" : row.reason));
+    if (!completed) add(item, node("div", "lineup-reason", row.locked ? "Game started · lineup locked" : row.reason));
     list.append(item);
   }
   main.append(list);
   main.append(add(node("div", "manual-buttons"), actionLink(report)));
-  main.append(node("p", "meta", "Source: " + report.sources.projections.join(", ") +
+  const method = node("details", "health-details");
+  add(method, node("summary", "", "Sources and estimates"), node("p", "meta", "Source: " + report.sources.projections.join(", ") +
     ". Point ranges and win chances are model estimates and have not been backtested."));
+  main.append(method);
 }
 function renderManualLineup(main, league) {
   add(main, node("h2", "section-head", league.name + " · " + league.platform + " · Week " + league.week),
@@ -270,9 +299,9 @@ function render() {
   const main = $("content"); main.replaceChildren();
   $("connections-view").hidden = state.view !== "leagues";
   $("lineup-selector").hidden = state.view !== "lineup";
-  const titles = {home: ["Your week, in view.", "The lineup decisions that deserve your attention."],
-    leagues: ["All your leagues.", "Connect a platform, update a roster, or pick a lineup to review."],
-    lineup: ["Your lineup.", "A clear view of what to keep, change, and check."]};
+  const titles = {home: ["Overview", ""],
+    leagues: ["Leagues", "Connect a platform, update a roster, or pick a lineup to review."],
+    lineup: ["Lineup", ""]};
   $("page-title").textContent = titles[state.view][0];
   $("page-description").textContent = titles[state.view][1];
   $("season-context").textContent = "Football · " + (state.season || state.reports[0]?.league.season || new Date().getFullYear()) +
@@ -308,7 +337,9 @@ function render() {
 }
 function setView(view) {
   if (!["home", "lineup", "leagues"].includes(view)) view = "home";
+  const changedView = state.view !== view;
   state.view = view;
+  if (changedView) window.scrollTo({top:0, behavior:"instant"});
   for (const kind of ["home", "lineup", "leagues"]) {
     $(kind + "-tab").classList.toggle("active", kind === view);
     $(kind + "-tab").setAttribute("aria-pressed", String(kind === view));
@@ -339,56 +370,65 @@ function selectLeague(key) {
 function busy(on) {
   state.loading = on;
   $("week").disabled = on;
-  $("refresh").disabled = on || !state.sleeperIds.length;
+  $("refresh").disabled = on;
   $("sample").disabled = on;
   $("connect-form").querySelector("button").disabled = on;
-  $("refresh").textContent = on ? "Refreshing…" : "↻ Refresh";
+  $("refresh").textContent = on ? "Updating…" : "Refresh";
   render();
 }
 async function getJson(url, options) {
   let response;
-  try { response = await fetch(url, options); }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25000);
+  try { response = await fetch(url, {...options, signal:controller.signal}); }
   catch { throw new Error("Couldn’t reach the dashboard. Check that the local server is running."); }
+  finally { clearTimeout(timeout); }
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || "Request failed.");
   return body;
 }
+function remember(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); return true; }
+  catch { return false; }
+}
+function applyReport(data, username) {
+  if (!data || !validReports(data.reports) || !data.reports.length) throw new Error("Report incomplete; your saved roster is retained.");
+  state.engineVersion = data.engine_version || 0;
+  state.username = username; state.reports = data.reports; state.freshness = data.freshness;
+  state.sample = false; state.sleeperIds = data.reports.map(report => report.league.id);
+  state.season = data.reports[0]?.league.season;
+  if (!state.week) state.currentWeek = data.reports[0]?.league.week;
+  populateLeagues();
+  const selectedSleeper = state.selected.startsWith("s:") ? state.selected.slice(2) : state.sleeperIds[0];
+  remember("fantasy-sleeper-connection", {username, leagueId: selectedSleeper});
+  remember("fantasy-last-lineups-v1", {username, engine_version: state.engineVersion, reports: data.reports, freshness: data.freshness});
+  render();
+}
 async function findLeagues() {
-  const username = $("username").value.trim();
-  busy(true); status("Finding Sleeper fantasy leagues…");
-  try {
-    const data = await getJson("/api/leagues?username=" + encodeURIComponent(username));
-    if (state.username !== username) { state.reports = []; state.freshness = null; }
-    state.username = username;
-    state.currentWeek = data.week; state.season = data.season;
-    $("manual-week").value = activeWeek();
-    state.sleeperIds = data.leagues.map(league => league.id);
-    status(data.leagues.length ? data.leagues.length + " Sleeper fantasy league(s) found. Loading lineups…" :
-      "No Sleeper fantasy leagues found for this season. Pick’em may need a separate connection.");
-    if (state.sleeperIds.length) await refresh();
-    else { busy(false); render(); }
-  } catch (error) { busy(false); status(state.reports.length ?
-    "Couldn’t refresh. Showing your last successful read with its original date." : error.message, true); }
+  await refresh($("username").value.trim(), true);
 }
-async function refresh() {
-  if (!state.sleeperIds.length) return;
-  busy(true); status("Reading all Sleeper rosters, injuries, projections, and matchups…");
+async function refresh(username = state.username, force = true) {
+  if (state.loading) return;
+  if (typeof username !== "string") username = state.username;
+  busy(true); status(state.reports.length ? "Updating in the background…" : "Loading your leagues…");
   try {
-    const data = await getJson("/api/lineups", {method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({username: state.username, ...(state.week ? {week: state.week} : {})})});
-    state.reports = data.reports; state.freshness = data.freshness;
-    state.sample = false; state.lastRefresh = Date.now();
-    populateLeagues();
-    const selectedSleeper = state.selected.startsWith("s:") ? state.selected.slice(2) :
-      (state.reports[0]?.league.id || "");
-    localStorage.setItem("fantasy-sleeper-connection", JSON.stringify({username: state.username, leagueId: selectedSleeper}));
-    localStorage.setItem("fantasy-last-lineups-v1", JSON.stringify({username: state.username,
-      reports: state.reports, freshness: state.freshness}));
-    status("Updated " + state.reports.length + " Sleeper league" + (state.reports.length === 1 ? "" : "s") + " · " + dateTime(data.reports[0].generated_at));
-    render();
-  } catch (error) { status(state.reports.length ? "Refresh failed. Showing your last successful read; check its age." : error.message, true); }
-  finally { busy(false); }
+    const payload = {username, week: state.week, force};
+    let job = await getJson("/api/refresh", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+    if (job.data) applyReport(job.data, username);
+    const query = new URLSearchParams({username, ...(state.week ? {week:state.week} : {})});
+    const deadline = Date.now() + 90000;
+    while (job.status === "refreshing" && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      job = await getJson("/api/refresh?" + query);
+    }
+    if (job.status !== "ready") throw new Error(job.error || "Still updating. Your saved report remains available; try Refresh shortly.");
+    applyReport(job.data, username); state.lastRefresh = Date.now();
+    status("Updated " + age(job.data.freshness.roster_fetched_at));
+  } catch (error) {
+    status(state.reports.length ? "Couldn’t refresh. Showing the last successful report." : error.message, true);
+  } finally { busy(false); }
 }
+
 function saveManual() { localStorage.setItem(manualKey, JSON.stringify(state.manual)); }
 const parseStarters = RosterImport.parseRoster;
 function previewRoster() {
@@ -475,7 +515,7 @@ $("refresh").addEventListener("click", refresh);
 $("sample").addEventListener("click", async () => {
   try {
     const data = await getJson("/api/sample");
-    state.reports = [data.report]; state.freshness = data.freshness; state.sample = true;
+    state.reports = [data.report]; state.freshness = data.freshness; state.sample = true; state.engineVersion = 2;
     populateLeagues(); status("Showing a saved week-3 injury scenario. Nothing here is live."); setView("home");
   } catch (error) { status(error.message, true); }
 });
@@ -485,7 +525,7 @@ $("lineup-tab").addEventListener("click", () => setView("lineup"));
 $("manage-leagues").addEventListener("click", () => setView("leagues"));
 $("preview-import").addEventListener("click", previewRoster);
 $("week").addEventListener("change", () => { state.week = Number($("week").value) || null;
-  render(); if (state.sleeperIds.length) refresh(); });
+  render(); refresh(); });
 window.addEventListener("hashchange", () => setView(location.hash.slice(1)));
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && state.reports.length && !state.sample &&
@@ -495,4 +535,8 @@ $("username").value = state.username;
 $("manual-week").value = activeWeek() || 1;
 for (let week = 1; week <= 18; week++) { const option = node("option", "", week); option.value = week; $("week").append(option); }
 state.sleeperIds = state.reports.map(report => report.league.id);
-populateLeagues(); setView(location.hash.slice(1) || "home"); findLeagues();
+populateLeagues(); setView(location.hash.slice(1) || "home"); refresh(state.username, false);
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {
+  // The normal interface still works when browser policy disallows offline storage.
+});

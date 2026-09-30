@@ -203,23 +203,31 @@ table{background:var(--panel);border:1px solid var(--line);border-radius:12px;ov
 @media(max-width:760px){.kicker,.profile-description{display:none}.freshness{font-size:11px;gap:8px}.sub{margin-top:12px}.archive-notice{font-size:12px}.board-overview>summary span{display:none}header,.wrap,.railin{padding-left:16px;padding-right:16px}header{padding-top:20px}h1{font-size:30px}.back-link{margin-bottom:16px}.board-overview{padding:0 16px;margin-top:16px}.decks{grid-template-columns:1fr}.deck-team{grid-column:auto}.draft-tools{margin-left:16px;margin-right:16px}.draft-controls .danger{margin-left:0}.railin{padding-top:12px;padding-bottom:12px}.chips{width:100%;flex-wrap:nowrap;justify-content:space-between}.chips button{font-size:12px;padding:8px 7px;min-width:32px}#q{width:calc(100% - 126px)}#hb{width:116px;padding:8px}.railin .spacer{display:none}.tally{font-size:11px;white-space:normal;width:100%;line-height:1.7}.hide-s,.expert-col,.position-col{display:none}.mobile-pos{display:inline-block;color:var(--dim);font-size:11px;margin-left:5px}thead th{top:0;padding:12px 6px;font-size:11px}td{padding:12px 6px;font-size:12px}.rk{width:26px}.nm{font-size:13px}.tm{display:none}.mine-btn,.detail-btn{min-width:36px;min-height:36px;margin-left:2px}.badge,.mkn,.trend,.inj{margin-left:3px;font-size:9px}.detail-grid{grid-template-columns:minmax(0,1fr)}.detail-row td{padding:16px}.signals{overflow-wrap:anywhere}.wrap{padding-bottom:48px}.slots{grid-template-columns:1fr}.hint{font-size:12px}}
 @media(prefers-color-scheme:dark){:root{--paper:#151d18;--panel:#1d2820;--row:#263429;--line:#344338;--line2:#4a5c4f;--ink:#edf3ee;--dim:#b2c3b6;--dimmer:#9dae9f;--good:#8ccda1;--goodbg:#284232;--bad:#f1a296;--badbg:#472c29;--warn:#dcc089;--info:#94b8de}button.on,.profile-btn.on,#sync.on,tr.mine .mine-btn,.ibtn[aria-expanded=true]{background:#366e4b;color:#fff}.ipanel,.detail-row,.detail-row:hover{background:var(--panel)}.b-VALUE{background:#253a4c}.inj.warn{background:#443c28}.pill{color:var(--ink)}.QB{background:#294151}.RB{background:#294435}.WR{background:#493f28}.TE{background:#453650}.pill.K{background:#3a4036}.pill.DST{background:#30404a}.b-SLEEPER,.b-VALUE,.b-FADE{border-color:var(--line2)}}
 
+
+/* Red scorecard identity, derived from Camden's personal design reference. */
+:root{color-scheme:light;--paper:#fff;--panel:#fff;--row:#faf7f7;--line:#e7e3e3;--line2:#d2cccc;--ink:#292929;--dim:#646464;--dimmer:#686262;--brand:#a13f43;--brandbg:#f8eded}
+html,body{font-size:15px}header{padding-top:28px}h1{font-family:Georgia,"Times New Roman",serif;font-size:38px;line-height:1.2;letter-spacing:-1px}.back-link{color:var(--dim);margin-bottom:20px;font-size:14px}.kicker{display:none}.archive-notice{border:0;background:transparent;padding:0;font-size:13px;margin-top:10px;border-radius:0;line-height:1.7;color:var(--dim)}.archive-notice strong{font-weight:500}.profile-switch{margin-top:24px}.profile-btn{font-size:14px;border-radius:10px;min-height:44px;padding:10px 16px}.profile-switch>span{font-size:14px;margin-right:8px}.profile-btn.on,button.on,#sync.on,tr.mine .mine-btn,.ibtn[aria-expanded=true]{background:var(--brand);border-color:var(--brand);color:#fff}.profile-description{display:none}.profile-caveat{font-size:13px;color:var(--dim)}.sub{margin-top:12px}.ibtn{font-size:13px;border:0;padding-left:0;color:var(--dim);border-radius:0}.ipanel .freshness{margin:0 0 20px}.board-overview{margin-top:24px}.board-overview>summary{font-size:15px}.board-overview>summary span{font-size:13px}.deck{padding:24px;border-radius:14px}.deck h4{font-size:17px;color:var(--ink);font-weight:600}.deck h4 span{font-size:12px}.ba .r{font-size:14px;padding:7px 0}.ba .r .num{font-size:13px}.pill{font-size:11px;background:#f5f4f4;color:var(--dim);border-radius:5px}.deck h4,#profile-hint,thead th.sorted,.trl{color:var(--ink)}.slots .slot{font-size:14px}.slot .lb{font-size:12px}.draft-tools{border:0;padding:0;margin-top:16px;background:transparent}.draft-tools>summary{font-size:14px;color:var(--dim)}.draft-controls{padding-top:12px}.draft-controls label{font-size:13px}.rail{border-bottom:0;margin-top:8px}.railin{padding-top:16px;padding-bottom:16px;gap:12px}.chips button{border-radius:8px;font-size:14px;min-height:42px}.nplab,.tally{font-size:13px}.tally{color:var(--dim)}#q,#np,#did,#slot{font-size:14px;min-height:42px;border-radius:10px}#q{width:220px}#hb{font-size:14px;min-height:42px}.expert-col,.model-col{display:none}table{border:0;border-radius:0;overflow:visible;margin-top:4px}thead th{font-size:13px;font-weight:500;padding:16px 12px;background:var(--panel);color:var(--dim);border-bottom:1px solid var(--line)}thead th.grp{color:var(--dim);opacity:1}td{padding:18px 12px;font-size:14px;vertical-align:middle}.rk{font-size:14px;font-weight:500;width:50px;color:var(--dim)}.nm{font-size:16px;font-weight:600}.player-line{display:flex;align-items:center;gap:14px}.team-logo{width:38px;height:38px;object-fit:contain;flex:none}.player-main{flex:1;min-width:0}.player-sub{display:block;font-size:12px;color:var(--dim);margin-top:4px;line-height:1.7}.row-actions{display:flex;gap:8px;margin-left:16px;flex:none}.mine-btn,.detail-btn{width:36px;height:36px;min-width:36px;min-height:36px;padding:8px;margin:0;color:var(--dim);background:transparent;border:1px solid var(--line);border-radius:8px;font-size:16px}.detail-btn{border-color:transparent}.row-actions button:hover{background:var(--brandbg);color:var(--brand);border-color:var(--line2)}tr.mine{background:var(--brandbg)}tr.mine .nm{color:var(--ink)}tr.tr td{padding:24px 12px 10px}.trl{font-size:13px;letter-spacing:0;text-transform:none;font-weight:500}.trl:after{background:var(--line)}.ptier{font-size:11px;font-weight:400;letter-spacing:0}.board-legend{margin:24px 0;color:var(--dim);font-size:13px}.board-legend>summary{cursor:pointer}.hint{font-size:13px;letter-spacing:0;line-height:1.8;margin-top:12px}.ipanel p{font-size:14px}.ipanel h3{font-size:15px}.signals,.flag{font-size:13px}.inj{font-size:11px;letter-spacing:0;padding:2px 5px}.empty{font-size:15px}.lasts{font-size:13px}.profile-btn:focus-visible,input:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible{outline-color:var(--brand)}
+@media(max-width:760px){h1{font-size:32px}.archive-notice{font-size:12px}.profile-btn{font-size:13px;padding:10px 12px}.board-overview{margin-top:12px}.deck{padding:20px}.draft-tools{margin-top:8px}.railin{gap:8px}.chips button{font-size:12px;min-height:44px;padding:8px 7px}.chips{gap:4px}#q{width:calc(100% - 128px);font-size:14px}#hb{width:120px;font-size:13px}.tally{font-size:12px;white-space:normal}.row-actions{gap:4px;margin-left:0;flex-direction:column}.mine-btn,.detail-btn{width:36px;height:36px;min-width:36px;min-height:36px;padding:6px}.player-line{gap:8px}.team-logo{width:28px;height:28px}.nm{font-size:14px}.player-sub{font-size:11px}.rk{width:26px;font-size:12px}td{padding:16px 4px;font-size:13px}thead th{font-size:12px;padding:12px 4px}.player-cell{width:100%}.site{width:46px}.player-main{min-width:0}.signals{overflow-wrap:anywhere}.hint{font-size:13px}tr.tr td{padding:18px 4px 8px}.profile-caveat{font-size:12px}.back-link{font-size:13px}.board-legend{font-size:13px}}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--paper:#191717;--panel:#211e1e;--row:#2b2323;--line:#443b3b;--line2:#695b5b;--ink:#f1ebeb;--dim:#c0b5b5;--dimmer:#b4a5a5;--brand:#e6a3a5;--brandbg:#3b2729}.profile-btn.on,button.on,#sync.on,tr.mine .mine-btn{background:#a13f43;border-color:#a13f43;color:#fff}.pill{background:#322c2c;color:var(--dim)}}
+
 </style><script>document.write('<script src="board-data.js?v='+Date.now()+'"><\/script>')</script>
 </head><body>
 
 <header>
 <a class="back-link" href="/">← Back to your dashboard</a>
 <div class="kicker" id="league-summary">12 teams · QB/2RB/2WR/TE/W-R-T/W-T/K/DST · half PPR · 0.75 per TE catch · 100 &amp; 200 yard bonuses</div>
-<h1>Your 2026 draft board.</h1>
-<p class="archive-notice"><strong>Preseason archive · 7 September 2026</strong><br>Ranks, projections, and injury tags are frozen at the draft cutoff. Use this for draft review; current-season player advice needs fresh rankings.</p>
+<h1>Players</h1>
+<p class="archive-notice"><strong>2026 draft archive</strong> · September 7 snapshot. Current-season rankings are not connected yet.</p>
 <div class="profile-switch" id="profile-switch" role="group" aria-label="Ranking profile">
- <span>Rank for</span><button class="profile-btn on" data-profile="sleeper">Sleeper league</button>
+ <span>League</span><button class="profile-btn on" data-profile="sleeper">Sleeper league</button>
  <button class="profile-btn" data-profile="dad">Dad's league</button><span class="profile-caveat" id="profile-caveat"></span>
 </div>
 <p class="sub" id="profile-sub">One draft call built from where half-PPR rooms are drafting, an independent
 expert board, your exact scoring, and preseason injury context. <button id="info" class="ibtn" aria-expanded="false"
 aria-controls="infopanel">How this works</button></p>
-<div class="freshness" id="freshness"><b>Snapshot sources</b></div>
+
 <div id="infopanel" class="ipanel" hidden>
+<div class="freshness" id="freshness"><b>Snapshot sources</b></div>
 <div id="standard-method">
 <h3>What the rank is</h3>
 <p>Half league model, half outside-information anchor. The model takes
@@ -276,7 +284,7 @@ starting lineups, and the late-position floors follow an 18-round, 180-pick draf
 </header>
 
 
-<details class="board-overview" id="draft-overview" open><summary>Draft overview<span>Best available · Value · My team</span></summary>
+<details class="board-overview" id="draft-overview"><summary>Draft overview<span>Best available · Value · My team</span></summary>
 <div class="decks">
  <div class="deck"><h4>Best available <span id="ba-note"></span></h4>
   <div class="ba" id="bestavail"></div></div>
@@ -311,10 +319,10 @@ starting lineups, and the late-position floors follow an 18-round, 180-pick draf
 <th class="hide-s" data-s="lastp" id="lasts-th">Lasts<span class="ar"></span></th>
 <th class="grp" data-s="market" title="Half-PPR draft market: FFC weighted 2, Yahoo weighted 1.">Market<span class="ar"></span></th>
 <th class="grp expert-col" data-s="expert_lane" title="RotoBaller free expert half-PPR overall Top 100.">Expert<span class="ar"></span></th>
-<th class="hide-s" data-s="model" title="Where the projection alone ranks him, ignoring every public board. Far above his Avg means the projection likes him more than the room does.">Model<span class="ar"></span></th>
+<th class="hide-s model-col" data-s="model" title="Where the projection alone ranks him, ignoring every public board. Far above his Avg means the projection likes him more than the room does.">Model<span class="ar"></span></th>
 <th data-s="gap" title="Outside-information anchor minus this board's rank. Positive means a potential discount.">Edge<span class="ar"></span></th>
 </tr></thead><tbody id="rows"></tbody></table>
-<p class="hint">
+<details class="board-legend"><summary>Reading the board</summary><p class="hint">
 <span id="profile-hint"><b>Market</b> = FFC and Yahoo half-PPR ADP. <b>Expert</b> = RotoBaller's free expert half-PPR
 Top 100. <b>Model</b> = this league's projection-only rank.</span> Open the small detail button by a
 player to see source context and scoring detail.<br>
@@ -324,7 +332,7 @@ and kept out of the value panel — cheap for a reason is not the same as cheap.
 Badges: <b>SLEEPER</b> = FFC ADP is 25+ slots later than this board outside the top 75.
 <b>VALUE</b> = 18+ slots of edge on the outside anchor. <b>FADE</b> = 18+ slots the other way.<br>
 Tiers are drops in value over replacement, not even buckets. Positional tier is under the position chip.
-</p></div>
+</p></details></div>
 
 <script>
 const PROFILES = window.BOARD_PROFILES || {sleeper:window.BOARD_DATA||[]};
@@ -332,6 +340,13 @@ let PROFILE = "sleeper";
 let DATA = PROFILES.sleeper || [];
 // Statuses that mean he is not a startable asset right now. Live from Sleeper.
 const INJ_BAD = new Set(["IR","PUP","Out","Sus","NA","DNR","Doubtful"]);
+function teamLogo(team){
+ const aliases={JAC:"JAX",WAS:"WSH",LA:"LAR",ARZ:"ARI"};team=aliases[team]||team;
+ const known=new Set("ARI ATL BAL BUF CAR CHI CIN CLE DAL DEN DET GB HOU IND JAX KC LAC LAR LV MIA MIN NE NO NYG NYJ PHI PIT SEA SF TB TEN WSH".split(" "));
+ if(!known.has(team))return "";
+ const base=location.protocol==="file:"?"app/assets/teams/":"/assets/teams/";
+ return `<img class="team-logo" src="${base+team.toLowerCase()}.png" alt="" width="36" height="36" loading="lazy">`;
+}
 function injBadge(x){
  if(!x.inj) return "";
  const bad = INJ_BAD.has(x.inj);
@@ -616,16 +631,14 @@ function render(){
   const gV=x.gap==null?"—":(x.gap>0?"+":"")+x.gap;
   h+=`<tr class="${d?"gone":""} ${mineRow?"mine":""} ${hurt?"hurt":""}" data-rk="${x.rk}">
    <td class="l rk">${x.rk}</td>
-   <td class="l"><span class="nm">${x.p}</span><span class="tm">${x.tm}</span><span class="mobile-pos">${x.pos}</span><button class="mine-btn" data-mine="${x.rk}" title="I drafted him">+</button><button class="detail-btn" data-detail="${x.rk}" title="Player details" aria-label="Details for ${x.p}">ⓘ</button>${
-   x.tag2?`<span class="badge b-${x.tag2}">${x.tag2}</span>`:""}${
-   x.mktnote?`<span class="mkn">${x.mktnote}</span>`:""}${x.trend!=null&&x.trend>=40?`<span class="trend">RISING</span>`:""}${injBadge(x)}</td>
+   <td class="l player-cell"><div class="player-line">${teamLogo(x.tm)}<div class="player-main"><span class="nm">${x.p}</span><span class="player-sub">${x.tm} · ${x.pos}${injBadge(x)}</span></div><div class="row-actions"><button class="mine-btn" data-mine="${x.rk}" title="I drafted him" aria-label="Add ${x.p} to my team">+</button><button class="detail-btn" data-detail="${x.rk}" title="Player details" aria-label="Details for ${x.p}">↗</button></div></div></td>
    <td class="l position-col"><span class="pill ${x.pos}">${x.pos}</span>
     <span class="ptier">${x.ptier?(x.pos+" t"+x.ptier):"&nbsp;"}</span></td>
    <td class="hide-s flat">${x.bye||"—"}</td>
    <td class="hide-s lasts">${lastsCell(x)}</td>
    <td class="avg">${n1(x.market)}</td>
    <td class="site expert-col">${x.expert_lane==null?'<span class="flat">NR</span>':i0(x.expert_lane)}</td>
-   <td class="hide-s flat">${x.model==null?"—":x.model}</td>
+   <td class="hide-s flat model-col">${x.model==null?"—":x.model}</td>
    <td class="${gC}">${gV}</td>
 </tr>`;
   if(S.open.has(x.rk)){
@@ -633,11 +646,11 @@ function render(){
    const scoring=PROFILE==="dad"?`<div class="signals"><b>Dad scoring estimate</b> ${n1(dp.total)} pts · model #${i0(x.model)}<br>
     Yard buckets ${n1(dp.yard_buckets)} · reception buckets ${n1(dp.reception_buckets)}<br>
     TD-distance estimate ${n1(dp.touchdown_distance)} · other ${n1(dp.other)}<br>
-    <b>Half-PPR timing context</b> ${n1(x.market)} · Expert ${i0(x.expert_lane)} · anchor ${n1(x.anchor)}<br>
+    <b>League model</b> ${i0(x.model)}<br><b>Half-PPR timing context</b> ${n1(x.market)} · Expert ${i0(x.expert_lane)} · anchor ${n1(x.anchor)}<br>
     Source ranks: FFC ${i0(x.ffcr)} · Yahoo ${i0(x.yahoor)} · FantasyCalc ${i0(x.fcalcr)}</div>
     <div class="flags"><div class="flag fg">Weekly yardage and catch thresholds are simulated from this player's projected volume.</div>
     <div class="flag fr">Touchdown distance uses a league-average distribution; it is not a player-specific long-TD prediction.</div></div>`:
-    `<div class="signals"><b>Half-PPR market</b> ${n1(x.market)} · FFC ${i0(x.ffcr)} · Yahoo ${i0(x.yahoor)}<br>
+    `<div class="signals"><b>League model</b> ${i0(x.model)}<br><b>Half-PPR market</b> ${n1(x.market)} · FFC ${i0(x.ffcr)} · Yahoo ${i0(x.yahoor)}<br>
     <b>Expert</b> ${i0(x.expert_lane)} · <b>FantasyCalc value</b> ${i0(x.fcalcr)}<br>
     <b>ESPN PPR context</b> ${i0(x.espnr)} · <b>Decision anchor</b> ${n1(x.anchor)} · ${x.nsrc} signals</div>
    <div class="flags"><div class="flag fg">${x.g||"No additional upside note."}</div><div class="flag fr">${x.r||"No additional risk note."}</div></div>`;

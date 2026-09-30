@@ -233,3 +233,15 @@ The GitHub Actions workflow has a hard cutoff at **2026-09-07 19:40:09 UTC**
 (12:40:09 PM PDT). At or after that instant, scheduled and manual runs are clean
 no-ops and cannot rewrite generated data. Camden requested this one-week cutoff
 on 31 August 2026.
+
+## Dashboard design and reliability
+
+Camden's priority is robust everyday use. Read `docs/product/design-brief.md` for
+the current red scorecard direction and the canonical personal design reference.
+The local dashboard uses background refresh jobs, dated browser/server snapshots,
+and an offline shell. Cache fallback must never acquire a new source timestamp.
+Missing roster projections withhold totals and suggested lineup columns.
+`python3 scripts/dashboard-service.py status` checks the macOS local service;
+install/uninstall are documented in README. It binds only to localhost. Preserve
+its availability when updating the running server, and verify failure/recovery
+paths when modifying refresh logic. Generated draft data remains frozen.

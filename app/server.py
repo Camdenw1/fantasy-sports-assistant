@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 from espn import import_league
 from runtime import RefreshStore
-from season import build as season_rankings
+from season import History, build as season_rankings
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -22,7 +22,8 @@ ENGINE = ROOT / "prototypes" / "start-sit" / "startsit.py"
 SAMPLE = ROOT / "prototypes" / "start-sit" / "sample-output-week3-whatif.json"
 PLAYER_CACHE = ROOT / "prototypes" / "start-sit" / ".cache" / "players_nfl.json"
 REFRESH = RefreshStore(HERE / ".cache" / "reports", version=2)
-SEASON = RefreshStore(HERE / ".cache" / "season", ttl=3600, version=1)
+SEASON = RefreshStore(HERE / ".cache" / "season", ttl=3600, version=2)
+SEASON_HISTORY = History(HERE / ".cache" / "season-history.json")
 UA = {"User-Agent": "fantasy-sports-assistant/local-dashboard"}
 USERNAME = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
 LEAGUE_ID = re.compile(r"^[0-9]{1,24}$")
@@ -115,7 +116,7 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/api/season":
             query = parse_qs(parsed.query)
-            self.reply(200, SEASON.request(("ros",), lambda: season_rankings(fetch_json), query.get("force") == ["1"])
+            self.reply(200, SEASON.request(("ros",), lambda: season_rankings(fetch_json, SEASON_HISTORY), query.get("force") == ["1"])
                        if query.get("start") == ["1"] or query.get("force") == ["1"] else SEASON.read(("ros",)))
             return
         if parsed.path == "/api/refresh":

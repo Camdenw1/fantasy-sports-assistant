@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 refresh/*.json
 .DS_Store
+
+# Private per-machine settings (your Sleeper username); never committed
+local-settings.json

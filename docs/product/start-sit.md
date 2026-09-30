@@ -29,9 +29,9 @@ workstreams.
 
 Run from the repository root:
 
-    python3 prototypes/start-sit/startsit.py camdenw1 --week 4
-    python3 prototypes/start-sit/startsit.py camdenw1 --week 4 --league LEAGUE_ID --json /tmp/start-sit.json
-    python3 prototypes/start-sit/startsit.py camdenw1 --week 4 --what-if 'Player Name=Out'
+    python3 prototypes/start-sit/startsit.py --week 4
+    python3 prototypes/start-sit/startsit.py --week 4 --league LEAGUE_ID --json /tmp/start-sit.json
+    python3 prototypes/start-sit/startsit.py --week 4 --what-if 'Player Name=Out'
 
 It gets the current season/week from Sleeper state, discovers leagues by
 username, then reads each league's settings, rosters, users, and weekly matchups.

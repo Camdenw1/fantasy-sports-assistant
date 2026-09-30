@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Start/sit prototype for Sleeper leagues -- stdlib only, read-only.
 
-    python3 prototypes/start-sit/startsit.py camdenw1            # all leagues, current week
-    python3 prototypes/start-sit/startsit.py camdenw1 --week 4 --league 1389345251432370176
-    python3 prototypes/start-sit/startsit.py camdenw1 --json out.json
+    python3 prototypes/start-sit/startsit.py                     # your leagues (username from local-settings.json), current week
+    python3 prototypes/start-sit/startsit.py SOME_USERNAME --week 4 --league LEAGUE_ID
+    python3 prototypes/start-sit/startsit.py --json out.json
 
 Pipeline (see docs/product/start-sit.md for the design):
   1. Sleeper: state -> user -> leagues -> league (slots + scoring) -> rosters ->
@@ -702,9 +702,23 @@ def print_table(out):
         print(f"  ! {a['message']}")
 
 
+def local_username():
+    """Read your Sleeper username from local-settings.json at the repo root.
+
+    That file is git-ignored, so the username stays on your machine and out of
+    the public repo. Example contents: {"sleeper_username": "your_name"}
+    """
+    path = pathlib.Path(__file__).resolve().parents[2] / "local-settings.json"
+    try:
+        return json.loads(path.read_text()).get("sleeper_username")
+    except (OSError, ValueError):
+        return None
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("username", nargs="?", default="camdenw1")
+    ap.add_argument("username", nargs="?", default=local_username(),
+                    help="Sleeper username (defaults to sleeper_username in local-settings.json)")
     ap.add_argument("--week", type=int)
     ap.add_argument("--league")
     ap.add_argument("--json", help="write contract JSON here")
@@ -712,6 +726,8 @@ def main():
     ap.add_argument("--what-if", action="append", default=[], metavar="NAME_OR_ID=STATUS",
                     help="override an injury status, e.g. --what-if 'Jahmyr Gibbs=Out'")
     a = ap.parse_args()
+    if not a.username:
+        ap.error("no Sleeper username: pass one, or put {\"sleeper_username\": \"...\"} in local-settings.json")
 
     now = dt.datetime.now(dt.timezone.utc)
     state = get(f"{SL}/state/nfl", cache_s=60)

@@ -253,5 +253,9 @@ rankings from current Sleeper weekly data. Keep this independent from the frozen
 draft pipeline. Standard half-PPR, remaining full weeks through Week 17, current
 week excluded, skill positions only. No claimed expert consensus, trade values,
 or custom scoring. Preserve source dates and complete-week coverage checks;
-placeholder ADP rows are not projections. Red (#980F26), with translucent fills and markers, is the subtle
+placeholder ADP rows are not projections.
+Tiers are 1-D k-means over each list's startable depth (`TIER_SHAPE`). Schedule
+strength is context only, never a rank input, because Sleeper's projections already
+price matchups. Movement compares against a local rank snapshot at least five days
+old (`app/.cache/season-history.json`) and stays blank until one exists. Red (#980F26), with translucent fills and markers, is the subtle
 project accent, with a white/charcoal canvas.

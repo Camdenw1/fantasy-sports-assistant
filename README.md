@@ -310,5 +310,5 @@ Every remaining week must provide at least 150 real skill-player projection rows
 ADP-only placeholders are rejected. API endpoints are undocumented and may change.
 The frozen September 7 draft board remains accessible through the archive link.
 
-The project’s subtle crimson accents now follow [NFL Shield Red](https://designplaybook.nfl.com/color)
-(`#D50A0A`): selected navigation, position tabs, buttons, and small context marks.
+The project’s subtle accents use a deeper, NFL-inspired maroon
+(`#741B2B`): selected navigation, position tabs, buttons, and small context marks.

@@ -253,5 +253,5 @@ rankings from current Sleeper weekly data. Keep this independent from the frozen
 draft pipeline. Standard half-PPR, remaining full weeks through Week 17, current
 week excluded, skill positions only. No claimed expert consensus, trade values,
 or custom scoring. Preserve source dates and complete-week coverage checks;
-placeholder ADP rows are not projections. NFL Shield Red (#D50A0A) is the subtle
+placeholder ADP rows are not projections. Dark maroon (#741B2B) is the subtle
 project accent, with a white/charcoal canvas.

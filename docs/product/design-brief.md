@@ -4,7 +4,7 @@ Personal reference: `/Users/camdenweber/Documents/Second Brain/Design/Personal W
 
 - Priority: dependable everyday use, then clear information, then visual character.
 - Identity: a personal fantasy scorecard; white surfaces, neutral charcoal text,
-  NFL Shield crimson (`#D50A0A`) and pale red selected fills (`#FFF1F1`).
+  dark maroon (`#741B2B`) and pale maroon selected fills (`#F8EFF1`).
 - Type: sturdy Georgia page headings; system sans-serif for controls, players,
   explanations, and tabular numbers. Balanced spacing, not compressed rows.
 - Motif: official team marks beside player names. Assets are local, have fixed

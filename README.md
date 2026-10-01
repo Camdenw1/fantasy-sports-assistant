@@ -299,15 +299,44 @@ Verification and handoff: [reliability iteration](docs/product/iteration-2026-09
 ### Current rest-of-season player view
 
 Open **Players** in the dashboard, or `http://127.0.0.1:8765/players.html`.
-This uses current Sleeper/RotoWire weekly half-PPR projections, summed for the
-remaining **full weeks through Week 17**. It excludes the current week and ranks
-RB/WR/TE together by default, with separate position filters. It is a projection
-ranking, not expert consensus, trade values, or a custom-league scoring model.
-The number of projected games and provider/read dates are shown; missing player
-weeks are not extrapolated. Projection reads happen in the background, are
-shared between requests, and retain the last complete snapshot during failure.
-Every remaining week must provide at least 150 real skill-player projection rows;
-ADP-only placeholders are rejected. API endpoints are undocumented and may change.
-The frozen September 7 draft board remains accessible through the archive link.
+This uses current Sleeper/RotoWire weekly projections for the remaining **full
+weeks through Week 17**, excluding the current week. Skill positions only.
+Choose General half-PPR, Camden’s 12-team scoring, Dad’s 10-team weekly buckets,
+or a connected Sleeper league. Position lists order by ROS points; custom-profile
+Flex lists order by points above league starter replacement, including flex demand.
+The current week, kickers, defenses, and draft ADP are excluded.
+
+Connect your Sleeper username in **Leagues**, then choose that league in Players
+for **My players**, **Available**, and a conservative **Roster outlook**. It
+protects current starters, reserve players, and the best projected legal core.
+Pickup/drop comparisons require a same-position bench upgrade of at least 15 ROS
+points and 20%, with the expected starter improvement explained. These are
+read-only comparisons, not transactions or trade values; check news and league
+waiver rules before acting. ESPN/CBS assisted imports remain separate and do not
+provide league-wide waiver ownership.
+
+Unknown nonzero scoring rules fail explicitly. Yardage bonuses use expected
+exclusive tier payouts; Dad’s yard/reception buckets and distance-based TD values
+use distribution assumptions, not thresholds applied to average yards. These
+parameters remain unbacktested. Configured statistics absent from the projection
+feed are disclosed under **How these rankings work**, rather than estimated.
+No additional injury multiplier is applied to the provider’s projected games.
+
+Background projection reads are shared across profiles for one hour and preserve
+their original read dates. Connected ownership refreshes every five minutes while
+the page is open. Failed or incomplete updates retain the last complete snapshot;
+suggestions pause on refresh failure, ownership older than 30 minutes, projection
+reads older than a day, provider revisions older than 72 hours, missing roster
+players, or unexplained missing player weeks. Every remaining week must provide
+at least 150 real skill-player projection rows; ADP placeholders are rejected.
+API endpoints are undocumented and may change. Server/browser snapshots and
+ownership stay in ignored local storage; no personal league data is checked in.
+
+Claude’s positional ranks, k-means tiers, schedule context, and five-day movement
+comparison are preserved. Movement history is separated by season and scoring
+profile. Schedule never changes rank. The frozen September 7 draft board remains
+accessible through the archive link.
+
+Verification and handoff: [league-aware season iteration](docs/product/iteration-league-season.md).
 
 The project’s subtle accents use red (`#980F26`) with translucent fills and markers: selected navigation, position tabs, buttons, and small context marks.

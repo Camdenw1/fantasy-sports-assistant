@@ -250,9 +250,19 @@ paths when modifying refresh logic. Generated draft data remains frozen.
 
 `app/players.html`, `app/season.js`, and `app/season.py` implement ROS projection
 rankings from current Sleeper weekly data. Keep this independent from the frozen
-draft pipeline. Standard half-PPR, remaining full weeks through Week 17, current
-week excluded, skill positions only. No claimed expert consensus, trade values,
-or custom scoring. Preserve source dates and complete-week coverage checks;
+draft pipeline. Remaining full weeks through Week 17, current week excluded,
+skill positions only. `season_scoring.py` supports standard half-PPR, Camden and
+Dad presets, and supported live Sleeper scoring. Unknown nonzero rules fail
+explicitly; configured stats missing from the feed are disclosed. Bucket/bonus
+payouts are expectations over documented, unbacktested distributions. No extra
+injury multiplier. Custom Flex lists use starter replacement including flex demand;
+position lists still rank by ROS points. No claimed expert consensus or trade values.
+`season_rosters.py` fetches complete Sleeper ownership and protects starters,
+reserves, and the optimal legal core from drop comparisons. Missing owned players
+or unexplained projected-week gaps withhold advice. ESPN/CBS imports are not
+league-wide ownership. `season_sources.py` shares one-hour dated raw reads;
+expired source failures never return a restamped fallback. Connected ownership
+refreshes every five minutes; suggestions pause on failed refresh or stale dates. Preserve source dates and complete-week coverage checks;
 placeholder ADP rows are not projections.
 Tiers are 1-D k-means over each list's startable depth (`TIER_SHAPE`). Schedule
 strength is context only, never a rank input, because Sleeper's projections already

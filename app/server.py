@@ -15,6 +15,8 @@ from urllib.parse import parse_qs, urlparse
 from espn import import_league
 from runtime import RefreshStore
 from season import History, build as season_rankings
+from season_rosters import discover as player_leagues
+from season_sources import SourceCache
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -22,8 +24,10 @@ ENGINE = ROOT / "prototypes" / "start-sit" / "startsit.py"
 SAMPLE = ROOT / "prototypes" / "start-sit" / "sample-output-week3-whatif.json"
 PLAYER_CACHE = ROOT / "prototypes" / "start-sit" / ".cache" / "players_nfl.json"
 REFRESH = RefreshStore(HERE / ".cache" / "reports", version=2)
-SEASON = RefreshStore(HERE / ".cache" / "season", ttl=3600, version=2)
+SEASON = RefreshStore(HERE / ".cache" / "season", ttl=3600, version=3)
+LEAGUE_SEASON = RefreshStore(HERE / ".cache" / "league-season", ttl=300, version=3)
 SEASON_HISTORY = History(HERE / ".cache" / "season-history.json")
+PLAYER_LEAGUES = RefreshStore(HERE / ".cache" / "player-leagues", ttl=300, version=1)
 UA = {"User-Agent": "fantasy-sports-assistant/local-dashboard"}
 USERNAME = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
 LEAGUE_ID = re.compile(r"^[0-9]{1,24}$")
@@ -33,6 +37,8 @@ def fetch_json(url):
     with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=20) as response:
         return json.load(response)
 
+
+SEASON_SOURCES = SourceCache(HERE / ".cache" / "season-sources", fetch_json)
 
 def discover(username):
     if not USERNAME.fullmatch(username):
@@ -114,10 +120,32 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
-        if parsed.path == "/api/season":
-            query = parse_qs(parsed.query)
-            self.reply(200, SEASON.request(("ros",), lambda: season_rankings(fetch_json, SEASON_HISTORY), query.get("force") == ["1"])
-                       if query.get("start") == ["1"] or query.get("force") == ["1"] else SEASON.read(("ros",)))
+        if parsed.path in {"/api/season", "/api/player-leagues"}:
+            try:
+                query = parse_qs(parsed.query)
+                username = query.get("username", [""])[0]
+                start = query.get("start") == ["1"] or query.get("force") == ["1"]
+                force = query.get("force") == ["1"]
+                if parsed.path == "/api/player-leagues":
+                    username, _ = refresh_key(username, None)
+                    key = (username,)
+                    result = PLAYER_LEAGUES.request(key, lambda: player_leagues(fetch_json, username), force) if start else PLAYER_LEAGUES.read(key)
+                else:
+                    profile = query.get("profile", ["standard"])[0]
+                    if profile not in {"standard", "camden", "dad", "league"}:
+                        raise ValueError("Unknown scoring profile")
+                    league_id = query.get("league_id", [None])[0]
+                    if profile == "league":
+                        username, _ = refresh_key(username, None)
+                        if not league_id or not LEAGUE_ID.fullmatch(league_id): raise ValueError("Invalid league ID")
+                    else: username, league_id = "", None
+                    key = (profile, username, league_id)
+                    store = LEAGUE_SEASON if profile == "league" else SEASON
+                    result = store.request(key, lambda: season_rankings(fetch_json, SEASON_HISTORY,
+                        profile, username, league_id, SEASON_SOURCES), force) if start else store.read(key)
+                self.reply(200, result)
+            except ValueError as exc:
+                self.reply(400, {"error": str(exc)})
             return
         if parsed.path == "/api/refresh":
             try:

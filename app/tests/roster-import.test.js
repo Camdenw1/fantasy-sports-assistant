@@ -21,3 +21,10 @@ assert.equal(imported[1].status,'Unknown');
 assert.throws(()=>parseRoster(cbs.replace('Active: 1 Reserve: 1','')),/incomplete/);
 assert.throws(()=>parseRoster(cbs.replace('Reserve: 1','Reserve: 2')),/counts/);
 assert.throws(()=>parseRoster(cbs.replace('Example Receiver WR | BUF','Example Quarterback WR | BUF')),/duplicate/);
+
+assert.equal(imported[0].team,'BAL');
+assert.equal(imported[1].position,'WR');
+assert.equal(parseRoster('Slot | Player | Status | Position | Team\nBN | Test Player | Unknown | WR | BUF')[0].team,'BUF');
+assert.equal(parseRoster('WR | Example \"Nickname\" Player | Active')[0].status,'Active');
+
+assert.throws(()=>parseRoster(cbs+',RB,Extra Player RB | BUF,NE\n'),/after CBS roster totals/);

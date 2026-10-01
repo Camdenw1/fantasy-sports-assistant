@@ -23,10 +23,11 @@ const report={schema:'startsit/v1',league:{id:'123',name:'Fixture league',season
 const data={engine_version:3,reports:[report],freshness:{roster_fetched_at:now,player_list_fetched_at:now}};
 let espnResponse={needs_team:true,teams:[{id:7,name:'Team by name'}]};
 const saved=new Map([['fantasy-sleeper-connection',JSON.stringify({username:'fixture',leagueId:'123'})],['fantasy-last-lineups-v1',JSON.stringify({...data,username:'fixture'})]]);
+let importSequence=0;
 const location={hash:'#home'},context=vm.createContext({document:{getElementById:get,createElement:t=>new Element(t),querySelectorAll:()=>[],querySelector:()=>get("context-bar"),addEventListener(){}},
   window:{scrollTo(){},addEventListener(){}},location,history:{replaceState(a,b,hash){location.hash=hash;}},
   localStorage:{getItem:k=>saved.get(k)||null,setItem:(k,v)=>saved.set(k,v)},navigator:{},URLSearchParams,AbortController,setTimeout,clearTimeout,
-  crypto:{randomUUID:()=> 'import-id'},RosterImport:{parseRoster:()=>[],leagueUrl:x=>x},
+  crypto:{randomUUID:()=> 'import-id-'+(++importSequence)},RosterImport:require('../roster-import.js'),
   fetch:async url=>({ok:true,json:async()=>url.startsWith('/api/espn?') ? espnResponse : url==='/api/season-state' ? {season:2026,week:5} : {status:'ready',data}})});
 vm.runInContext(fs.readFileSync(path.join(__dirname,'../app.js'),'utf8'),context);
 (async()=>{
@@ -43,9 +44,20 @@ vm.runInContext(fs.readFileSync(path.join(__dirname,'../app.js'),'utf8'),context
   assert.equal(get('espn-connect-panel').hidden,true);
   assert.equal(get('manual-import').open,true);
   assert.equal(get('manual-platform').value,'CBS');
+  vm.runInContext("state.manual=[{id:'manual',name:'Fixture CBS',platform:'CBS',week:5,starters:[{slot:'RB',player:'Starter',status:'Active'}],bench:[{slot:'BN',player:'Bench',status:'Active'}]}]",context);
   // Updating a manual snapshot must preserve its bench in the editable roster.
   vm.runInContext("editManual({id:'manual',name:'Fixture CBS',platform:'CBS',week:5,starters:[{slot:'RB',player:'Starter',status:'Active'}],bench:[{slot:'BN',player:'Bench',status:'Active'}]})",context);
   assert.match(get('manual-starters').value,/BN \| Bench \| Active/);
+  get('manual-name').value='Fixture CBS';get('manual-week').value='5';get('manual-scoring').value='';get('manual-url').value='';
+  get('manual-starters').value='RB | Starter | Active';
+  get('manual-form').listeners.submit({preventDefault(){}});
+  assert.equal(vm.runInContext('state.manual[0].bench.length',context),0,'Removing bench rows must not resurrect the old bench');
+  get('roster-file').files=[{size:200,text:async()=>',Pos,Players,Opp\n,QB,Example Quarterback QB | BAL,TEN\nReserves\n,WR,Example Receiver WR | BUF,NE\nActive: 1 Reserve: 1'}];
+  vm.runInContext("choosePlatform('CBS')",context);
+  await get('roster-file').listeners.change();
+  get('manual-form').listeners.submit({preventDefault(){}});
+  assert.equal(vm.runInContext('state.manual.at(-1).bench[0].position',context),'WR');
+  assert.equal(vm.runInContext('state.manual.at(-1).starters[0].team',context),'BAL');
   get('espn-url').value='https://fantasy.espn.com/football/league?leagueId=1';
   await get('espn-form').listeners.submit({preventDefault(){}});
   assert.equal(get('espn-team-label').hidden,false);
@@ -55,7 +67,7 @@ vm.runInContext(fs.readFileSync(path.join(__dirname,'../app.js'),'utf8'),context
   espnResponse={needs_team:false,snapshot:{name:'Fixture ESPN',platform:'ESPN',teamName:'Team by name',week:5,
     starters:[{slot:'RB',player:'Starter',status:'Active'}],bench:[{slot:'BN',player:'Bench',status:'Active'}],savedAt:now}};
   await get('espn-form').listeners.submit({preventDefault(){}});
-  assert.equal(vm.runInContext('state.manual[0].bench.length',context),1);
+  assert.equal(vm.runInContext('state.manual.at(-1).bench.length',context),1);
   assert.equal(vm.runInContext('state.view',context),'lineup');
   assert.match(get('content').textContent,/Bench · 1BNBench/);
   console.log('Workspace bench, reserve, visible Home actions, and guided connection checks passed');

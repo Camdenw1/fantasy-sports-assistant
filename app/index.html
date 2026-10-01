@@ -47,11 +47,11 @@
           </section>
         </div>
         <details class="manual-import card" id="manual-import" hidden>
-          <summary>Paste a roster from your league page<span>Private ESPN · CBS · Other</span></summary>
-          <p class="meta">Open your roster in the league app, select and copy the roster table, then paste it below. Include starters and bench. We’ll show a preview as you paste. This roster stays in your browser; refresh it by pasting a newer copy.</p>
+          <summary id="manual-title">Paste a roster from your league page</summary>
+          <p id="manual-instructions" class="meta">Paste labelled roster rows, including starters and bench. Your snapshot stays in this browser.</p>
           <form id="manual-form">
-            <label for="roster-file">Import roster export<input id="roster-file" type="file" accept=".csv,text/csv"></label>
-            <p class="meta">CBS: use the Export button at the bottom of your roster page, then choose that CSV here. Player names and bench slots are included; injury statuses are not in the export.</p>
+            <div id="cbs-export"><label for="roster-file">Choose CBS roster CSV<input id="roster-file" type="file" accept=".csv,text/csv"></label>
+            <p class="meta">CBS: use the Export button at the bottom of your roster page, then choose that CSV here. Player names and bench slots are included; injury statuses are not in the export.</p></div>
             <div class="manual-fields">
               <label>League name<input id="manual-name" required maxlength="80" placeholder="League name"></label>
               <label hidden>Platform<select id="manual-platform"><option>ESPN</option><option>CBS</option><option>Other</option><option>Sleeper Pick’em</option></select></label>

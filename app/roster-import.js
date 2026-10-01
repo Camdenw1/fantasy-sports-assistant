@@ -5,7 +5,7 @@
     bye:"Bye", empty:"Empty", unknown:"Unknown", "":"Unknown"};
   function parseRoster(text, required = true) {
     if (text.length > 500000) throw new Error('Import one roster, not an entire league export.');
-    const csv=parseCSV(text);
+    const csv=/^.*,(?:\s*"?pos"?\s*|\s*"?players"?\s*),.*$/im.test(text) ? parseCSV(text) : [];
     const cbsHeader=csv.findIndex(row=>row.some(v=>v.trim().toLowerCase()==='players') && row.some(v=>v.trim().toLowerCase()==='pos'));
     if(cbsHeader>=0) return parseCBS(csv,cbsHeader);
     const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
@@ -16,6 +16,7 @@
     const headerPlayer = first.findIndex(value => ["player", "name", "player name"].includes(value));
     const headerSlot = first.findIndex(value => ["slot", "position", "pos"].includes(value));
     const headerStatus = first.findIndex(value => ["status", "injury", "injury status"].includes(value));
+    const headerPosition=first.indexOf('position'), headerTeam=first.indexOf('team');
     const hasHeader = headerPlayer >= 0 && headerSlot >= 0;
     const data = hasHeader ? lines.slice(1) : lines;
     if (required && !data.length) throw new Error("The table has headers but no roster rows.");
@@ -29,7 +30,11 @@
       const status = statuses[rawStatus];
       if (status == null) throw new Error("Row " + (index + 1) + ": unknown status '" + rawStatus + "'. Review this row instead of guessing.");
       if (slot.length > 30 || player.length > 80) throw new Error("Row " + (index + 1) + ": this looks like more than a slot and player name.");
-      return {slot, player, status};
+      const position=hasHeader && headerPosition>=0 && headerPosition!==headerSlot ? parts[headerPosition] : '';
+      const team=hasHeader && headerTeam>=0 ? parts[headerTeam] : '';
+      if(position && !/^(QB|RB|WR|TE|K|DST|DEF|RB-WR-TE)$/i.test(position))throw Error('Invalid player position.');
+      if(team && !/^[A-Z]{2,3}$/.test(team))throw Error('Invalid team abbreviation.');
+      return {slot, player, status,...(position ? {position} : {}),...(team ? {team} : {})};
     });
   }
   function parseCSV(text) {
@@ -49,6 +54,7 @@
     let bench=false, totalsSeen=false;const result=[];
     for(const row of rows.slice(header+1)) {
       const text=row.join(' ').trim();if(!text)continue;
+      if(totalsSeen)throw Error('Unexpected data after CBS roster totals. Export the full roster again.');
       if(/^reserves$/i.test(text)){bench=true;continue;}
       if(/^active:\s*\d+\s+reserve:\s*\d+$/i.test(text)) {
         totalsSeen=true;
@@ -58,10 +64,11 @@
       }
       const position=(row[pos] || '').trim().toUpperCase(),raw=(row[name] || '').trim();
       if(!position || !raw || !/^(QB|RB|WR|TE|K|DST|DEF|RB-WR-TE)$/.test(position)) throw Error('Unrecognized CBS roster row. Export the roster overview again.');
-      const player=raw.replace(/\s+(QB|RB|WR|TE|K|DST|DEF)\s*\|\s*[A-Z]{2,3}\s*$/,'').trim();
+      const identity=raw.match(/\s+(QB|RB|WR|TE|K|DST|DEF)\s*\|\s*([A-Z]{2,3})\s*$/);
+      const player=identity ? raw.slice(0,identity.index).trim() : raw;
       if(!player || player.length>80)throw Error('Invalid CBS player name.');
       result.push({slot:bench ? 'BN' : position==='RB-WR-TE' ? 'FLEX' : position==='DST' ? 'DEF' : position,
-        player,status:'Unknown',position});
+        player,status:'Unknown',position:identity ? identity[1] : position,...(identity ? {team:identity[2]} : {})});
     }
     if(!totalsSeen)throw Error('CBS export is incomplete: missing roster totals. Export the full roster again.');
     if(new Set(result.map(p=>p.player.toLowerCase())).size!==result.length)throw Error('CBS export contains duplicate players. Check the roster before importing.');

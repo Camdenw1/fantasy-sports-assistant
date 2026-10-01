@@ -140,6 +140,11 @@ function manualItems(league) {
   if(benchInjuries.length)items.push({priority:1,element:card(league.name+' · Bench','Check your injured players',benchInjuries.map(p=>p.player+' · '+p.status).join('; '),'check')});
   const unknown=league.starters.filter(p=>p.status==='Unknown');
   if(unknown.length)items.push({priority:1,element:card(league.name+' · Injury check','Confirm current player statuses',unknown.length+' starters have no injury designation in this snapshot. Check the league page before kickoff.','check')});
+  for(const item of items) {
+    const review=node('button','quiet','Review lineup');review.addEventListener('click',()=>selectLeague('m:'+league.id));
+    item.element.append(review);
+    if(league.url) {const link=node('a','action','Open in '+league.platform+' ↗');link.href=league.url;link.target='_blank';link.rel='noopener noreferrer';item.element.append(link);}
+  }
   return items;
 }
 function leagueStrip() {
@@ -256,7 +261,7 @@ function benchSection(main, players, title, manual=false) {
   if (!players.length) {main.append(node('p','meta','No players in this section.'));return;}
   const list=node('section','lineup-list completed bench-list');
   for (const p of players) {
-    const player=manual ? {name:p.player,pos:p.position || p.slot,injury:p.status==='Active' ? null : p.status} : p;
+    const player=manual ? {name:p.player,pos:p.position || p.slot,team:p.team,injury:p.status==='Active' ? null : p.status} : p;
     const row=node('article','lineup-row');
     add(row,node('span','slot-chip',title==='Reserve' ? 'RES' : 'BN'),playerBlock(player),
       add(node('div','lineup-points'),node('span','',manual ? p.status : projected(p)),node('small','',manual ? 'Entered status' : p.locked ? 'Game started' : p.kickoff ? dateTime(p.kickoff) : 'Kickoff unknown')));
@@ -318,7 +323,7 @@ function renderManualLineup(main, league) {
     table.append(add(node("thead"), head));
     const body = node("tbody");
     for (const row of league.starters) body.append(add(node("tr"),
-      node("td", "", row.slot), node("td", "", row.player), node("td", "", row.status)));
+      node("td", "", row.slot), add(node("td"),playerBlock({name:row.player,pos:row.position,team:row.team})), node("td", "", row.status)));
     table.append(body); main.append(table);
   }
   const bench=(league.bench || []).filter(p=>!['IR','RESERVE'].includes(p.slot.toUpperCase()));
@@ -511,8 +516,10 @@ function editManual(league) {
   $("manual-scoring").value = league.scoring;
   $("manual-week").value = league.week;
   $("manual-url").value = league.url || "";
-  $("manual-starters").value = [...league.starters, ...(league.bench || [])].map(row =>
-    row.slot + " | " + row.player + " | " + row.status).join("\n");
+  const roster=[...league.starters, ...(league.bench || [])];
+  const metadata=roster.some(row=>row.position || row.team);
+  $("manual-starters").value = (metadata ? "Slot | Player | Status | Position | Team\n" : "")+roster.map(row =>
+    [row.slot,row.player,row.status,...(metadata ? [row.position || "",row.team || ""] : [])].join(" | ")).join("\n");
   $("manual-starters").required = league.platform !== "Sleeper Pick’em";
   $("import-preview").hidden = true; $("manual-import").open = true;
   $("manual-import").scrollIntoView({behavior: "smooth"});
@@ -530,7 +537,7 @@ $("manual-form").addEventListener("submit", event => {
       platform, scoring: $("manual-scoring").value.trim(), week: Number($("manual-week").value),
       url: RosterImport.leagueUrl($("manual-url").value),
       starters, savedAt: new Date().toISOString(),
-      ...(state.pendingImport || {}), bench: pastedBench.length ? pastedBench : state.pendingImport?.bench || []};
+      ...(state.pendingImport || {}), bench: pastedBench};
     if (!league.name || !Number.isInteger(league.week) || league.week < 1 || league.week > 18)
       throw new Error("Enter a league name and week 1–18.");
     const next=state.editing ? state.manual.map(item=>item.id===state.editing ? league : item) : [...state.manual,league];
@@ -546,6 +553,7 @@ $("manual-form").addEventListener("submit", event => {
 $("manual-cancel").addEventListener("click", () => {
   state.editing = null; state.pendingImport = null; $("manual-form").reset();
   $("manual-starters").required = true; $("import-preview").hidden = true; $("manual-import").open = false;
+  status("Import cancelled.");
 });
 $("manual-platform").addEventListener("change", () => {
   $("manual-starters").required = $("manual-platform").value !== "Sleeper Pick’em";
@@ -588,6 +596,9 @@ function choosePlatform(platform, paste=false) {
   const manual=platform==='CBS' || platform==='Sleeper Pick’em' || paste;
   $("manual-import").hidden=!manual;$("manual-import").open=manual;
   if(manual) {
+    $("cbs-export").hidden=platform!=='CBS';
+    $("manual-title").textContent=platform==='CBS' ? 'Import your CBS roster' : platform==='Sleeper Pick’em' ? 'Add your Pick’em league' : 'Paste your '+platform+' roster';
+    $("manual-instructions").textContent=platform==='CBS' ? 'Open your team page, click Export at the bottom, then choose the CSV below. We check the starter and bench counts before saving. This is a local snapshot; import a newer export after roster changes.' : platform==='Sleeper Pick’em' ? 'Save a league name and link for quick access. Picks are not imported yet.' : 'Paste a table with Slot, Player and Status columns, or slot | player | status rows. Include starters and bench. We preview it before saving; your snapshot stays in this browser.';
     state.editing=null;state.pendingImport=null;$("manual-form").reset();
     $("manual-platform").value=platform;if(paste && platform==='ESPN')$("manual-url").value=$("espn-url").value;$("manual-name").value=platform==='Sleeper Pick’em' ? 'Pick’em league' : platform+' league';
     $("manual-week").value=activeWeek() || '';$("manual-starters").required=platform!=='Sleeper Pick’em';
@@ -600,8 +611,8 @@ $("roster-file").addEventListener('change',async()=>{
   const file=$("roster-file").files[0];if(!file)return;
   try {
     if(file.size>500000)throw Error('Choose one roster export under 500 KB.');
-    const rows=parseStarters(await file.text());
-    $("manual-starters").value=rows.map(r=>[r.slot,r.player,r.status].join(' | ')).join('\n');
+    const text=await file.text(), rows=parseStarters(text);
+    $("manual-starters").value=text;
     state.pendingImport={source:'CBS roster export',bench:rows.filter(r=>r.slot==='BN')};
     previewRoster();status('Roster read · '+rows.filter(r=>r.slot!=='BN').length+' starters and '+rows.filter(r=>r.slot==='BN').length+' bench players. Review and add the league.');
   } catch(error){status(error.message,true);}

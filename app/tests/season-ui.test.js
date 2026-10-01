@@ -29,6 +29,7 @@ vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'../season.j
   assert.equal(requested.searchParams.get('league_id'),'123');
   assert.equal(requested.searchParams.get('username'),'fixture');
   assert.equal(vm.runInContext('decisionIssues().length',context),0);
+  assert.ok(get('season-rows').children.some(row=>row.className==='season-owned'));
   state='failed';
   await vm.runInContext('refresh(true)',context);
   assert.equal(vm.runInContext('data.players.length',context),1);

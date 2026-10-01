@@ -11,3 +11,13 @@ assert.throws(()=>parseRoster('Slot\tPlayer\tStatus'),/no roster rows/);
 assert.throws(()=>leagueUrl('javascript:alert(1)'),/https/);
 assert.equal(leagueUrl('https://fantasy.espn.com/football/team?leagueId=1'), 'https://fantasy.espn.com/football/team?leagueId=1');
 console.log('Roster parser checks passed');
+
+const cbs='Players\n,Pos,Players,Opp\n,QB,Example Quarterback QB | BAL,TEN\nReserves\n,WR,Example Receiver WR | BUF,NE\nActive: 1 Reserve: 1\n';
+const imported=parseRoster(cbs);
+assert.equal(imported.length,2);
+assert.equal(imported[0].player,'Example Quarterback');
+assert.equal(imported[1].slot,'BN');
+assert.equal(imported[1].status,'Unknown');
+assert.throws(()=>parseRoster(cbs.replace('Active: 1 Reserve: 1','')),/incomplete/);
+assert.throws(()=>parseRoster(cbs.replace('Reserve: 1','Reserve: 2')),/counts/);
+assert.throws(()=>parseRoster(cbs.replace('Example Receiver WR | BUF','Example Quarterback WR | BUF')),/duplicate/);

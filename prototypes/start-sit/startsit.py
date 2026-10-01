@@ -664,6 +664,8 @@ def run_league(lg, week, me_id, P, sproj, eproj, games, now, schedule_source="es
                     "projection_gaps": projection_gaps},
         "totals": {"current": round(sum(cur_t) / SIMS, 1), "recommended": round(sum(rec_t) / SIMS, 1)},
         "slots": rows,
+        "bench": [ref(p) for p in sorted(pl.values(), key=lambda p: (-p['value'], p['name'])) if p['id'] not in cur_ids],
+        "reserve": [ref(player(pid, pp)) for pid in sorted(reserve)],
         "swaps": swaps,
         "alerts": alerts,
         "apply": {"method": "deep_link", "url": f"https://sleeper.com/leagues/{lid}/team",

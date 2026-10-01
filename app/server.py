@@ -23,7 +23,7 @@ ROOT = HERE.parent
 ENGINE = ROOT / "prototypes" / "start-sit" / "startsit.py"
 SAMPLE = ROOT / "prototypes" / "start-sit" / "sample-output-week3-whatif.json"
 PLAYER_CACHE = ROOT / "prototypes" / "start-sit" / ".cache" / "players_nfl.json"
-REFRESH = RefreshStore(HERE / ".cache" / "reports", version=2)
+REFRESH = RefreshStore(HERE / ".cache" / "reports", version=3)
 SEASON = RefreshStore(HERE / ".cache" / "season", ttl=3600, version=3)
 LEAGUE_SEASON = RefreshStore(HERE / ".cache" / "league-season", ttl=300, version=3)
 SEASON_HISTORY = History(HERE / ".cache" / "season-history.json")
@@ -90,7 +90,7 @@ def report(username, league_id=None, week=None):
         raise ValueError("No current Sleeper roster found for this username.")
     cache_time = (dt.datetime.fromtimestamp(PLAYER_CACHE.stat().st_mtime, dt.timezone.utc)
                   .isoformat() if PLAYER_CACHE.exists() else None)
-    return {"engine_version": 2, "reports": reports, "freshness": {
+    return {"engine_version": 3, "reports": reports, "freshness": {
         "roster_fetched_at": reports[0]["generated_at"],
         "player_list_fetched_at": cache_time,
         "projections_fetched_at": (reports[0]["generated_at"]
@@ -120,6 +120,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/api/season-state':
+            try:
+                state = SEASON_SOURCES('https://api.sleeper.app/v1/state/nfl')
+                self.reply(200, {'season': int(state['season']), 'week': int(state.get('display_week') or state['week'])})
+            except Exception:
+                self.reply(502, {'error': 'Current week unavailable. Choose the snapshot week.'})
+            return
         if parsed.path in {"/api/season", "/api/player-leagues"}:
             try:
                 query = parse_qs(parsed.query)

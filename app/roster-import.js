@@ -4,6 +4,10 @@
     d:"Doubtful", doubtful:"Doubtful", o:"Out", out:"Out", ir:"IR", pup:"PUP", sus:"Sus",
     bye:"Bye", empty:"Empty", unknown:"Unknown", "":"Unknown"};
   function parseRoster(text, required = true) {
+    if (text.length > 500000) throw new Error('Import one roster, not an entire league export.');
+    const csv=parseCSV(text);
+    const cbsHeader=csv.findIndex(row=>row.some(v=>v.trim().toLowerCase()==='players') && row.some(v=>v.trim().toLowerCase()==='pos'));
+    if(cbsHeader>=0) return parseCBS(csv,cbsHeader);
     const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
     if (required && !lines.length) throw new Error("Paste a roster before saving.");
     if (!lines.length) return [];
@@ -27,6 +31,42 @@
       if (slot.length > 30 || player.length > 80) throw new Error("Row " + (index + 1) + ": this looks like more than a slot and player name.");
       return {slot, player, status};
     });
+  }
+  function parseCSV(text) {
+    const rows=[];let row=[],cell='',quoted=false;
+    for(let i=0;i<text.length;i++) {
+      const c=text[i];
+      if(c==='"') {if(quoted && text[i+1]==='"'){cell+='"';i++;}else quoted=!quoted;}
+      else if(c===',' && !quoted){row.push(cell);cell='';}
+      else if((c==='\n' || c==='\r') && !quoted){if(c==='\r' && text[i+1]==='\n')i++;row.push(cell);rows.push(row);row=[];cell='';}
+      else cell+=c;
+    }
+    if(quoted) throw new Error('The CSV has an unfinished quoted field. Export the roster again.');
+    if(cell || row.length){row.push(cell);rows.push(row);}return rows;
+  }
+  function parseCBS(rows,header) {
+    const labels=rows[header].map(v=>v.trim().toLowerCase()),pos=labels.indexOf('pos'),name=labels.indexOf('players');
+    let bench=false, totalsSeen=false;const result=[];
+    for(const row of rows.slice(header+1)) {
+      const text=row.join(' ').trim();if(!text)continue;
+      if(/^reserves$/i.test(text)){bench=true;continue;}
+      if(/^active:\s*\d+\s+reserve:\s*\d+$/i.test(text)) {
+        totalsSeen=true;
+        const totals=text.match(/active:\s*(\d+)\s+reserve:\s*(\d+)/i);
+        if(result.filter(p=>p.slot!=='BN').length!==+totals[1] || result.filter(p=>p.slot==='BN').length!==+totals[2]) throw Error('CBS roster counts do not match the export. Import the full file again.');
+        continue;
+      }
+      const position=(row[pos] || '').trim().toUpperCase(),raw=(row[name] || '').trim();
+      if(!position || !raw || !/^(QB|RB|WR|TE|K|DST|DEF|RB-WR-TE)$/.test(position)) throw Error('Unrecognized CBS roster row. Export the roster overview again.');
+      const player=raw.replace(/\s+(QB|RB|WR|TE|K|DST|DEF)\s*\|\s*[A-Z]{2,3}\s*$/,'').trim();
+      if(!player || player.length>80)throw Error('Invalid CBS player name.');
+      result.push({slot:bench ? 'BN' : position==='RB-WR-TE' ? 'FLEX' : position==='DST' ? 'DEF' : position,
+        player,status:'Unknown',position});
+    }
+    if(!totalsSeen)throw Error('CBS export is incomplete: missing roster totals. Export the full roster again.');
+    if(new Set(result.map(p=>p.player.toLowerCase())).size!==result.length)throw Error('CBS export contains duplicate players. Check the roster before importing.');
+    if(!result.length || result.length>80)throw Error('No complete CBS roster found.');
+    return result;
   }
   function leagueUrl(value) {
     if (!value.trim()) return "";

@@ -246,6 +246,16 @@ install/uninstall are documented in README. It binds only to localhost. Preserve
 its availability when updating the running server, and verify failure/recovery
 paths when modifying refresh logic. Generated draft data remains frozen.
 
+## Everyday dashboard
+
+Lineup report engine version 3 includes `bench` and `reserve` player references.
+Render these from the current roster, separate from starter recommendations;
+never synthesize zero points for missing projections. Home exposes data checks
+and bench/reserve injuries as visible action cards. Connection setup selects a
+platform first: username-only Sleeper, URL and named-team selection for public
+ESPN, guided roster paste for CBS/private ESPN. Snapshots remain local; do not
+claim authenticated sync. ROS-owned rows have a translucent red fill and marker.
+
 ## Current season player view
 
 `app/players.html`, `app/season.js`, and `app/season.py` implement ROS projection

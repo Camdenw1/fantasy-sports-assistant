@@ -37,7 +37,7 @@ function render() {
       const divider = el('tr','season-tier'), label = el('th','',`Tier ${tier}`);
       label.colSpan = 8; label.scope = 'rowgroup'; divider.append(label); body.append(divider);
     }
-    const row = el('tr'); row.append(el('td','season-rank',rank));
+    const row = el('tr',p.ownership === 'mine' ? 'season-owned' : ''); row.append(el('td','season-rank',rank));
     const cell = el('td'), identity = el('div','player-identity');
     const aliases = {JAC:'JAX',WAS:'WSH',LA:'LAR',ARZ:'ARI'};
     const team = aliases[p.team] || p.team;
@@ -46,7 +46,7 @@ function render() {
     const posRank = p.ranks?.[p.position] ? p.position + p.ranks[p.position] : p.position;
     const meta = el('div','player-meta',[team,posRank].filter(Boolean).join(' · '));
     if (p.injury) { const badge = el('span','injury-badge',INJURY[p.injury] || p.injury); badge.title = p.injury; badge.setAttribute('aria-label', 'Injury status: ' + p.injury); meta.append(' ', badge); }
-    if (p.ownership === 'mine') meta.append(' · Yours');
+    if (p.ownership === 'mine') {const badge=el('span','ownership-badge','My team');meta.append(' ',badge);}
     const copy = el('div','player-copy'); copy.append(el('span','player-name',p.name),meta);
     identity.append(copy); cell.append(identity);
     const sched = el('td','season-sched', p.schedule ? SCHEDULE[p.schedule - 1] : '–');
@@ -149,7 +149,7 @@ async function loadLeagues() {
     if(result.status!=='ready' || !Array.isArray(leagues))throw Error('Unavailable');
     for(const league of leagues) {const option=el('option','',league.name+' · Sleeper');option.value='league:'+league.id;byId('season-profile').append(option);}
     hint.textContent='';
-    let selected=null;try {selected=localStorage.getItem('fantasy-player-profile');}catch{}
+    let selected=null;try {selected=localStorage.getItem('fantasy-player-profile'); const connection=JSON.parse(localStorage.getItem('fantasy-sleeper-connection')); if(connection?.leagueId && !localStorage.getItem('fantasy-ownership-default:'+username.toLowerCase())) {const ownedLeague=leagues.find(l=>l.id===connection.leagueId) || leagues[0];if(ownedLeague){selected='league:'+ownedLeague.id;localStorage.setItem('fantasy-player-profile',selected);localStorage.setItem('fantasy-ownership-default:'+username.toLowerCase(),'1');}}}catch{}
     if (selected && [...byId('season-profile').options].some(o=>o.value===selected) && selected!==profile) {
       profile=selected;byId('season-profile').value=profile;loadSaved();render();refresh();
     }

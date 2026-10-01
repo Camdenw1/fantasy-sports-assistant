@@ -49,11 +49,11 @@ platform setup and imports:
 - **ESPN:** paste a public football league/team URL and choose your team number.
   The local server reads roster, team, and settings views without credentials.
   Review the imported roster and week before saving a snapshot. This adapter is
-  tested with fixtures; Camden's actual ESPN URL is still needed for validation.
+  tested with fixtures; Camden's supplied ESPN league requires sign-in, so its roster has not been imported.
 - **CBS / private ESPN:** copy a roster table with labelled Slot/Pos, Player, and
   Status columns, or paste `slot | player | status` rows. Preview before saving.
   Missing statuses remain Unknown. BN/BE/Bench/IR/Reserve slots are excluded from
-  starter alerts. Actual CBS page layout still needs validation from a supplied URL.
+  starter alerts. CBS also accepts its native roster overview CSV export, with starter/bench totals checked.
 - **Sleeper Pick'em:** can be listed as a snapshot; its picks do not populate here.
 
 Snapshots are saved only in this browser and must be updated after roster or
@@ -276,6 +276,8 @@ redesign, import progress, source review, and next player-ranking milestone.
 ~~~bash
 python3 -m unittest discover -s app/tests
 node app/tests/roster-import.test.js
+node app/tests/season-ui.test.js
+node app/tests/workspace-ui.test.js
 ~~~
 
 ## Reliability and offline behavior
@@ -340,3 +342,22 @@ accessible through the archive link.
 Verification and handoff: [league-aware season iteration](docs/product/iteration-league-season.md).
 
 The project’s subtle accents use red (`#980F26`) with translucent fills and markers: selected navigation, position tabs, buttons, and small context marks.
+
+### Everyday navigation and setup
+
+Home shows league counts, lineup actions, injury designations, visible data checks,
+bench/reserve injury reminders, matchup context, and links to lineup review and
+ROS planning. Lineup includes starters, the full current bench and reserve players;
+missing projections remain Unknown. Saved reports without a bench ask for refresh.
+Connected ROS rosters have a translucent red row, left marker and My team badge.
+
+In Leagues, choose a platform first. Sleeper needs one username; it finds all
+current football leagues automatically and returns Home after rosters load.
+Public ESPN needs a team/league URL; choose your team by name if needed, and the
+roster saves directly with starters and bench. CBS and private ESPN use a guided
+roster paste with automatic preview, default name/current week, and optional
+fields folded away. These are browser-local snapshots, not authenticated sync.
+CBS also accepts its native roster overview CSV export. The signed-in CBS page was
+verified and Camden’s 10 starters and eight bench players were saved locally. CSV
+exports omit injuries, so those statuses remain Unknown. Pick’em is a league
+listing only; picks are not imported.

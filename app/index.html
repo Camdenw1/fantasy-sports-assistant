@@ -33,34 +33,37 @@
       <div id="freshness" class="freshness" hidden></div>
       <main id="content"></main>
       <section id="connections-view" hidden aria-label="Connect leagues">
+        <div class="connect-start"><h2>Add a league</h2><p class="meta">Choose where you play. We’ll guide you through the shortest way in.</p><div class="platform-choices" role="group" aria-label="League platform"><button data-connect-platform="Sleeper" aria-pressed="true">Sleeper</button><button data-connect-platform="ESPN" aria-pressed="false">ESPN</button><button data-connect-platform="CBS" aria-pressed="false">CBS</button><button data-connect-platform="Sleeper Pick’em" aria-pressed="false">Pick’em</button></div></div>
         <div class="connection-grid">
-          <section class="connect card">
-            <span class="platform-icon">S</span><h2>Connect Sleeper</h2><p>Your fantasy leagues and lineups update together.</p>
+          <section class="connect card" id="sleeper-connect-panel">
+            <span class="platform-icon">S</span><h2>One username. All your leagues.</h2><p>Enter your Sleeper username. We find your leagues and load your rosters automatically. No password needed.</p>
             <form id="connect-form"><label for="username">Username</label><div class="connect-row"><input id="username" name="username" autocomplete="username" placeholder="Your Sleeper username" required><button type="submit">Connect</button></div></form>
-            <p class="meta">Sleeper Pick’em needs a separate connection.</p>
+            <p class="meta" id="sleeper-connect-status" role="status">Use the username from your Sleeper profile.</p>
           </section>
-          <section class="card import-card">
-            <span class="platform-icon neutral">↗</span><h2>Connect ESPN or CBS</h2><p>Import a public ESPN league by URL, or bring a roster over from a league page.</p>
-            <form id="espn-form"><label for="espn-url">ESPN team or league URL</label><input id="espn-url" type="url" placeholder="https://fantasy.espn.com/football/team?…" required><div class="connect-row"><label for="espn-team">Team number<input id="espn-team" type="number" min="1" max="100" placeholder="From team URL"></label><button type="submit" id="espn-connect">Import ESPN</button></div></form>
-            <p id="espn-status" class="meta" role="status">Private leagues can use a roster snapshot below.</p>
+          <section class="card import-card" id="espn-connect-panel" hidden>
+            <span class="platform-icon neutral">↗</span><h2>Paste your ESPN link</h2><p>Copy the address of your team or league page. If it is public, we’ll find your roster.</p>
+            <form id="espn-form"><label for="espn-url">ESPN team or league URL</label><input id="espn-url" type="url" placeholder="https://fantasy.espn.com/football/team?…" required><div class="connect-row"><label for="espn-team" id="espn-team-label" hidden>Your team<select id="espn-team"><option value="">Choose your team</option></select></label><button type="submit" id="espn-connect">Find my roster</button></div></form>
+            <p id="espn-status" class="meta" role="status">No team numbers to look up. Choose your team by name if asked.</p>
           </section>
         </div>
-        <details class="manual-import card" id="manual-import">
-          <summary>Import or update a roster snapshot<span>ESPN · CBS · Other</span></summary>
-          <p class="meta">Paste starter rows as <strong>slot | player | status</strong>, or a table with Slot, Player, and Status columns copied from a league page. Review the preview before saving. Snapshots stay in this browser.</p>
+        <details class="manual-import card" id="manual-import" hidden>
+          <summary id="manual-title">Paste a roster from your league page</summary>
+          <p id="manual-instructions" class="meta">Paste labelled roster rows, including starters and bench. Your snapshot stays in this browser.</p>
           <form id="manual-form">
+            <div id="cbs-export"><label for="roster-file">Choose CBS roster CSV<input id="roster-file" type="file" accept=".csv,text/csv"></label>
+            <p class="meta">CBS: use the Export button at the bottom of your roster page, then choose that CSV here. Player names and bench slots are included; injury statuses are not in the export.</p></div>
             <div class="manual-fields">
               <label>League name<input id="manual-name" required maxlength="80" placeholder="League name"></label>
-              <label>Platform<select id="manual-platform"><option>ESPN</option><option>CBS</option><option>Other</option><option>Sleeper Pick’em</option></select></label>
-              <label>Scoring summary<input id="manual-scoring" maxlength="160" placeholder="e.g. half PPR, 12 teams"></label>
+              <label hidden>Platform<select id="manual-platform"><option>ESPN</option><option>CBS</option><option>Other</option><option>Sleeper Pick’em</option></select></label>
               <label>Snapshot week<input id="manual-week" type="number" min="1" max="18" required></label>
-              <label class="full-width">League page URL <span class="optional">optional</span><input id="manual-url" type="url" placeholder="https://…"></label>
+              <details class="full-width setup-options"><summary>Optional details</summary><label>Scoring summary<input id="manual-scoring" maxlength="160" placeholder="e.g. half PPR, 12 teams"></label><label>League page URL<input id="manual-url" type="url" placeholder="https://…"></label></details>
             </div>
             <label for="manual-starters">Roster from league page</label><textarea id="manual-starters" rows="6" required placeholder="QB | Josh Allen | Active&#10;RB | Christian McCaffrey | Questionable&#10;WR | Empty | Empty"></textarea>
             <div id="import-preview" class="import-preview" hidden></div>
-            <div class="manual-buttons"><button type="button" id="preview-import" class="quiet">Preview roster</button><button type="submit">Save snapshot</button><button type="button" id="manual-cancel" class="text-button">Cancel</button></div>
+            <div class="manual-buttons"><button type="button" id="preview-import" class="quiet">Preview roster</button><button type="submit">Add this league</button><button type="button" id="manual-cancel" class="text-button">Cancel</button></div>
           </form>
         </details>
+        <div id="connected-leagues"></div>
         <details class="sample-option"><summary>Saved demo</summary><button id="sample" class="text-button">View injury example</button></details>
       </section>
       <footer>Make lineup changes in your league’s app. Refresh here to confirm.</footer>

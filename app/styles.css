@@ -34,3 +34,29 @@ button:not(.quiet):not(.text-button):not([aria-pressed]):hover{background:rgb(15
 
 .season-tier th{text-align:left;font-size:12px;font-weight:600;color:var(--accent);padding:24px 12px 8px;border-bottom:1px solid var(--accent-border);letter-spacing:.02em}.season-tier:first-child th{padding-top:12px}.season-table tbody tr.season-tier:hover{background:none}.season-sched,.season-move,.season-bye,.season-games{color:var(--muted)}.season-sched[data-level="1"],.season-sched[data-level="2"]{color:var(--ink)}.season-sched[data-level="4"],.season-sched[data-level="5"]{color:var(--accent);font-weight:500}.season-move[data-dir=up]{color:var(--ink)}.injury-badge{display:inline-block;font-size:11px;font-weight:600;color:var(--accent);border:1px solid var(--accent-border);border-radius:5px;padding:0 5px;margin-left:2px;line-height:1.5}
 @media(max-width:760px){.season-table .season-bye,.season-table .season-games,.season-table .season-move{display:none}.season-tier th{padding:20px 4px 6px}}
+.season-controls{display:flex;align-items:end;gap:20px;flex-wrap:wrap;margin:0 0 16px}.season-controls label{display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--muted)}.season-controls select{min-height:44px;max-width:340px;background:var(--paper);color:var(--ink)}.season-controls .meta{padding-bottom:10px}.season-decisions{padding:20px 0;border-bottom:1px solid var(--line)}.season-decisions h2{font-size:17px;margin-bottom:12px}.season-decisions p{line-height:1.7}.season-advice{border-left:2px solid var(--accent-border);padding:8px 16px;margin:14px 0}.season-advice strong{font-size:14px;font-weight:600}
+@media(max-width:760px){.season-controls{gap:12px}.season-controls label:first-child{width:100%}.season-controls select{max-width:100%;width:100%}.season-controls .meta{padding:0}.season-decisions{padding:16px 0}}
+
+/* Make ownership and the next useful action visible at a glance. */
+.season-table tr.season-owned { background: rgb(152 15 38 / 6%); }
+.season-table tr.season-owned:hover { background: rgb(152 15 38 / 10%); }
+.season-owned td:first-child { box-shadow: inset 3px 0 var(--accent-marker); }
+.ownership-badge { display:inline-block; color:var(--accent); background:rgb(152 15 38 / 9%); border:1px solid var(--accent-border); border-radius:5px; padding:1px 6px; margin-left:5px; font-size:11px; font-weight:600; }
+.home-pulse { display:flex; gap:48px; padding:0 0 28px; margin-bottom:28px; border-bottom:1px solid var(--line); }
+.home-pulse>div { display:flex; flex-direction:column; gap:8px; }
+.league-score { font-size:16px; font-weight:600; margin:14px 0 8px; }
+.bench-list .lineup-points small { display:block!important; font-size:11px; color:var(--muted); margin-top:5px; }
+.connect-start { margin:24px 0; }
+.platform-choices { display:flex; gap:10px; flex-wrap:wrap; margin-top:20px; }
+.platform-choices button { background:transparent; color:var(--ink); border:1px solid var(--line); min-width:100px; }
+.platform-choices [aria-pressed=true] { background:var(--accent-soft); border-color:var(--accent-border); color:var(--accent); }
+.connection-grid { grid-template-columns:minmax(0,640px); }
+.connection-grid .card { margin-top:8px; }
+.connection-grid form { margin-top:24px; }
+.setup-options summary { font-size:13px; color:var(--muted); }
+.setup-options label { margin-top:16px; }
+@media(max-width:760px) { .home-pulse { gap:20px; justify-content:space-between; } .home-pulse .metric { font-size:24px; } .home-pulse .caption { font-size:11px; } .platform-choices { gap:8px; } .platform-choices button { min-width:0; flex:1; padding:10px; } }
+
+.league-card p { min-height:0; margin:8px 0; }
+.league-card .league-score { margin-top:16px; }
+#connected-leagues { margin-top:32px; }

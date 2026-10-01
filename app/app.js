@@ -58,7 +58,7 @@ function activeWeek() { return state.sample ? state.reports[0]?.league.week :
 function quality(report) {
   const issues = [];
   if (state.sample) issues.push("Historical example");
-  if (state.engineVersion !== 2) issues.push("Recommendation model needs refresh");
+  if (state.engineVersion !== 3) issues.push("Recommendation model needs refresh");
   if (activeWeek() && report.league.week !== activeWeek()) issues.push("Roster is from a different week; refresh needed");
   if (reportGaps(report).length) issues.push("Missing projections: " + reportGaps(report).map(p => p.name).join(", "));
   if (report.sources.schedule !== "espn scoreboard") issues.push("Kickoff times unverified");
@@ -88,7 +88,7 @@ function card(label, title, body, kind, report) {
 }
 function sleeperItems(report) {
   const items = [], league = report.league.name;
-  if (state.engineVersion !== 2 || (activeWeek() && report.league.week !== activeWeek())) return items;
+  if (state.engineVersion !== 3 || (activeWeek() && report.league.week !== activeWeek())) return items;
   const gaps = reportGaps(report).length > 0;
   const changed = report.slots.filter(row => row.change && !row.locked);
   const forced = report.slots.filter(row => !row.locked &&
@@ -130,11 +130,20 @@ function manualItems(league) {
       items.push({priority: 0, element: card(league.name + " · " + league.platform + " snapshot",
         row.status === "Empty" ? row.slot + " is empty" : row.player + " is " + row.status,
         "Snapshot from " + age(league.savedAt) + ". Check the platform for a legal replacement and current status.", "urgent")});
-    } else if (["Questionable", "Doubtful", "Unknown"].includes(row.status)) {
+    } else if (["Questionable", "Doubtful"].includes(row.status)) {
       items.push({priority: 1, element: card(league.name + " · " + league.platform + " snapshot",
         "Recheck " + row.player + " (" + row.status + ")",
         "Snapshot from " + age(league.savedAt) + ". Confirm the designation before lineup lock.", "check")});
     }
+  }
+  const benchInjuries=(league.bench || []).filter(p=>['Questionable','Doubtful','Out','IR','PUP','Sus'].includes(p.status));
+  if(benchInjuries.length)items.push({priority:1,element:card(league.name+' · Bench','Check your injured players',benchInjuries.map(p=>p.player+' · '+p.status).join('; '),'check')});
+  const unknown=league.starters.filter(p=>p.status==='Unknown');
+  if(unknown.length)items.push({priority:1,element:card(league.name+' · Injury check','Confirm current player statuses',unknown.length+' starters have no injury designation in this snapshot. Check the league page before kickoff.','check')});
+  for(const item of items) {
+    const review=node('button','quiet','Review lineup');review.addEventListener('click',()=>selectLeague('m:'+league.id));
+    item.element.append(review);
+    if(league.url) {const link=node('a','action','Open in '+league.platform+' ↗');link.href=league.url;link.target='_blank';link.rel='noopener noreferrer';item.element.append(link);}
   }
   return items;
 }
@@ -146,6 +155,9 @@ function leagueStrip() {
     add(el, node("span", "pill", "Sleeper"),
       node("h3", "", report.league.name),
       node("p", "meta", report.team.name + " · Updated " + age(state.freshness?.roster_fetched_at)));
+    el.append(node("p","league-score",reportGaps(report).length ? "Lineup projection incomplete" : "Current lineup · "+number(report.totals.current)+" pts"));
+    if(report.opponent?.team_name) el.append(node("p","meta","vs "+report.opponent.team_name));
+    el.append(node("p","meta",report.slots.filter(s=>s.locked).length+" / "+report.slots.length+" starters locked · "+(report.bench?.length ?? "?")+" on bench"));
     if (issues.length) el.append(node("span", "health-note", "△ " + issues.length +
       " input" + (issues.length === 1 ? "" : "s") + " to check"));
     const button = node("button", "quiet", "View lineup");
@@ -177,17 +189,37 @@ function renderHome(main) {
   main.append(node("h2", "", "This week"));
   const items = [...state.reports.flatMap(sleeperItems), ...state.manual.flatMap(manualItems)]
     .sort((a, b) => a.priority - b.priority);
-  if (!items.length) main.append(add(node("section", "card clear"), node("span", "clear-mark", issues.length ? "△" : "✓"),
+  const pulse = node('section', 'home-pulse');
+  const injuries = state.reports.flatMap(r => [...r.slots.map(s=>s.current), ...(r.bench || []), ...(r.reserve || [])]).filter(p=>p?.injury);
+  injuries.push(...state.manual.flatMap(l=>[...l.starters,...(l.bench || [])]).filter(p=>['Questionable','Doubtful','Out','IR','PUP','Sus'].includes(p.status)));
+  for (const [value,label] of [[state.reports.length+state.manual.length,'Connected leagues'],[items.length,'Lineup actions'],[injuries.length,'Injury designations']])
+    pulse.append(add(node('div'),node('strong','metric',value),node('span','caption',label)));
+  main.prepend(pulse);
+  if (!items.length && !issues.length) main.append(add(node("section", "card clear"), node("span", "clear-mark", issues.length ? "△" : "✓"),
     add(node("div"), node("h3", "", issues.length ? "Review before kickoff" : "Your lineup looks settled"),
       node("p", "", issues.length ? "Review the data checks below before treating your lineup as settled." :
         "Nothing stands out in the data we have. Check injuries again before kickoff."))));
   else items.forEach(item => main.append(item.element));
-  if (issues.length) {
-    const details = node("details", "health-details");
-    add(details, node("summary", "", "△ " + issues.length + " data check" + (issues.length === 1 ? "" : "s")),
-      node("div", "notice", issues.join(" · ")));
-    main.append(details);
+  for (const report of state.reports) {
+    const checks=quality(report);
+    if (checks.length) {
+      const check=card(report.league.name+' · Needs attention','Review league data',checks.join(' · '),'check');
+      const review=node('button','quiet','Review lineup');review.addEventListener('click',()=>selectLeague('s:'+report.league.id));
+      const update=node('button','text-button','Refresh data');update.disabled=state.loading;update.addEventListener('click',()=>refresh());
+      check.append(add(node('div','manual-buttons'),review,update));main.append(check);
+    }
+    const benchInjuries=[...(report.bench || []), ...(report.reserve || [])].filter(p=>p.injury);
+    if (benchInjuries.length) {
+      const check=card(report.league.name+' · Bench & reserve','Check your injured players',benchInjuries.map(p=>p.name+' · '+p.injury).join('; '),'check',report);
+      main.append(check);
+    }
   }
+  for (const league of state.manual.filter(l=>Date.now()-Date.parse(l.savedAt)>24*3600000 || (activeWeek() && l.week!==activeWeek()))) {
+    const check=card(league.platform+' · Roster update',league.name+' needs a newer roster','Saved '+age(league.savedAt)+' · Week '+league.week+'. Bring over the latest roster before using it for decisions.','check');
+    const update=node('button','quiet','Update roster');update.addEventListener('click',()=>editManual(league));check.append(update);main.append(check);
+  }
+  const season=card('Roster planning','Review your rest-of-season players','See your highlighted roster, league-adjusted rankings and available players.','');
+  const seasonLink=node('a','action','Open my rankings →');seasonLink.href='/players.html';season.append(seasonLink);main.append(season);
   add(main, node("h2", "section-head", "Your leagues"), leagueStrip());
 }
 function playerCell(player) {
@@ -224,6 +256,19 @@ function projected(player) {
   if (!player.sources && !(player.game_state === "post" && player.actual != null) && player.game_state !== "bye") return "Unknown";
   return number(player.value);
 }
+function benchSection(main, players, title, manual=false) {
+  main.append(node('h2','section-head',title+' · '+players.length));
+  if (!players.length) {main.append(node('p','meta','No players in this section.'));return;}
+  const list=node('section','lineup-list completed bench-list');
+  for (const p of players) {
+    const player=manual ? {name:p.player,pos:p.position || p.slot,team:p.team,injury:p.status==='Active' ? null : p.status} : p;
+    const row=node('article','lineup-row');
+    add(row,node('span','slot-chip',title==='Reserve' ? 'RES' : 'BN'),playerBlock(player),
+      add(node('div','lineup-points'),node('span','',manual ? p.status : projected(p)),node('small','',manual ? 'Entered status' : p.locked ? 'Game started' : p.kickoff ? dateTime(p.kickoff) : 'Kickoff unknown')));
+    list.append(row);
+  }
+  main.append(list);
+}
 function renderSleeperLineup(main, report) {
   add(main, node("h2", "", report.team.name),
     node("p", "meta", report.league.name + " · Week " + report.league.week + " · " +
@@ -242,7 +287,7 @@ function renderSleeperLineup(main, report) {
       Math.round(report.opponent.win_prob_recommended * 100) + "%"),
     node("span", "caption", "Win chance · model estimate")));
   if (!incomplete) main.append(summary);
-  const completed = report.slots.every(row => row.locked) || incomplete || state.engineVersion !== 2;
+  const completed = report.slots.every(row => row.locked) || incomplete || state.engineVersion !== 3;
   const list = node("section", "lineup-list" + (completed ? " completed" : ""));
   add(list, add(node("div", "lineup-head"), node("span", "", "Slot"), node("span", "", "Your lineup"),
     node("span", "suggested-heading", "Suggested lineup"), node("span", "", report.slots.every(row => row.locked) ? "Points" : "Projected")));
@@ -257,6 +302,10 @@ function renderSleeperLineup(main, report) {
     list.append(item);
   }
   main.append(list);
+  if (Array.isArray(report.bench)) {
+    benchSection(main,report.bench,'Bench');
+    if (report.reserve?.length) benchSection(main,report.reserve,'Reserve');
+  } else main.append(node('p','notice','Refresh to load your bench and reserve players. Your saved starters remain visible.'));
   main.append(add(node("div", "manual-buttons"), actionLink(report)));
   const method = node("details", "health-details");
   add(method, node("summary", "", "Sources and estimates"), node("p", "meta", "Source: " + report.sources.projections.join(", ") +
@@ -274,9 +323,13 @@ function renderManualLineup(main, league) {
     table.append(add(node("thead"), head));
     const body = node("tbody");
     for (const row of league.starters) body.append(add(node("tr"),
-      node("td", "", row.slot), node("td", "", row.player), node("td", "", row.status)));
+      node("td", "", row.slot), add(node("td"),playerBlock({name:row.player,pos:row.position,team:row.team})), node("td", "", row.status)));
     table.append(body); main.append(table);
   }
+  const bench=(league.bench || []).filter(p=>!['IR','RESERVE'].includes(p.slot.toUpperCase()));
+  const reserve=(league.bench || []).filter(p=>['IR','RESERVE'].includes(p.slot.toUpperCase()));
+  benchSection(main,bench,'Bench',true);
+  if (reserve.length) benchSection(main,reserve,'Reserve',true);
   const update = node("button", "quiet", "Update snapshot");
   update.addEventListener("click", () => editManual(league));
   const remove = node("button", "text-button", "Remove league");
@@ -307,8 +360,11 @@ function render() {
   $("season-context").textContent = "Football · " + (state.season || state.reports[0]?.league.season || new Date().getFullYear()) +
     (activeWeek() ? " · Week " + activeWeek() : " season");
   const hasData = state.reports.length || state.manual.length;
+  $("connected-leagues").replaceChildren();
+  $("manage-leagues").hidden=state.view==='leagues';
+  document.querySelector('.context-bar').hidden=state.view==='leagues';
   if (state.view === "leagues") {
-    if (hasData) main.append(leagueStrip());
+    if (hasData) $("connected-leagues").append(node('h2','section-head','Connected leagues'),leagueStrip());
   } else if (!hasData) {
     const empty = add(node("section", "empty"), node("h2", "", state.loading ? "Loading your leagues…" : "Bring your leagues together"),
       node("p", "", state.loading ? "Reading rosters, injuries, and projections. This can take a moment." :
@@ -405,7 +461,17 @@ function applyReport(data, username) {
   render();
 }
 async function findLeagues() {
-  await refresh($("username").value.trim(), true);
+  const username=$("username").value.trim(), note=$("sleeper-connect-status");
+  if (!/^[A-Za-z0-9_-]{1,32}$/.test(username)) {note.textContent='Enter your Sleeper username, not an email or password.';return;}
+  const button=$("connect-form").querySelector('button');button.disabled=true;note.textContent='Finding your leagues…';
+  try {
+    const catalog=await getJson('/api/leagues?'+new URLSearchParams({username}));
+    if (!catalog.leagues?.length) throw Error('No fantasy football leagues found for this username this season. Pick’em uses the separate option above.');
+    note.textContent='Found '+catalog.leagues.length+' league'+(catalog.leagues.length===1 ? '' : 's')+': '+catalog.leagues.map(l=>l.name).join(', ')+'. Loading rosters…';
+    if(await refresh(username,true)) {note.textContent='Connected. Your leagues and full rosters are ready.';setView('home');}
+    else note.textContent='Leagues found, but the roster update did not finish. Your existing connection is safe; try Connect again.';
+  } catch(error) {note.textContent=error.message;}
+  finally {button.disabled=false;}
 }
 async function refresh(username = state.username, force = true) {
   if (state.loading) return;
@@ -423,9 +489,9 @@ async function refresh(username = state.username, force = true) {
     }
     if (job.status !== "ready") throw new Error(job.error || "Still updating. Your saved report remains available; try Refresh shortly.");
     applyReport(job.data, username); state.lastRefresh = Date.now();
-    status("Updated " + age(job.data.freshness.roster_fetched_at));
+    status("Updated " + age(job.data.freshness.roster_fetched_at)); return true;
   } catch (error) {
-    status(state.reports.length ? "Couldn’t refresh. Showing the last successful report." : error.message, true);
+    status(state.reports.length ? "Couldn’t refresh. Showing the last successful report." : error.message, true); return false;
   } finally { busy(false); }
 }
 
@@ -442,6 +508,7 @@ function previewRoster() {
 }
 function editManual(league) {
   setView("leagues");
+  choosePlatform(league.platform,true);
   state.editing = league.id;
   state.pendingImport = {bench: league.bench || [], source: league.source, teamName: league.teamName};
   $("manual-name").value = league.name;
@@ -449,8 +516,10 @@ function editManual(league) {
   $("manual-scoring").value = league.scoring;
   $("manual-week").value = league.week;
   $("manual-url").value = league.url || "";
-  $("manual-starters").value = league.starters.map(row =>
-    row.slot + " | " + row.player + " | " + row.status).join("\n");
+  const roster=[...league.starters, ...(league.bench || [])];
+  const metadata=roster.some(row=>row.position || row.team);
+  $("manual-starters").value = (metadata ? "Slot | Player | Status | Position | Team\n" : "")+roster.map(row =>
+    [row.slot,row.player,row.status,...(metadata ? [row.position || "",row.team || ""] : [])].join(" | ")).join("\n");
   $("manual-starters").required = league.platform !== "Sleeper Pick’em";
   $("import-preview").hidden = true; $("manual-import").open = true;
   $("manual-import").scrollIntoView({behavior: "smooth"});
@@ -468,12 +537,12 @@ $("manual-form").addEventListener("submit", event => {
       platform, scoring: $("manual-scoring").value.trim(), week: Number($("manual-week").value),
       url: RosterImport.leagueUrl($("manual-url").value),
       starters, savedAt: new Date().toISOString(),
-      ...(state.pendingImport || {}), bench: pastedBench.length ? pastedBench : state.pendingImport?.bench || []};
+      ...(state.pendingImport || {}), bench: pastedBench};
     if (!league.name || !Number.isInteger(league.week) || league.week < 1 || league.week > 18)
       throw new Error("Enter a league name and week 1–18.");
-    if (state.editing) state.manual = state.manual.map(item => item.id === state.editing ? league : item);
-    else state.manual.push(league);
-    saveManual(); state.selected = "m:" + league.id; populateLeagues();
+    const next=state.editing ? state.manual.map(item=>item.id===state.editing ? league : item) : [...state.manual,league];
+    if(!remember(manualKey,next)) throw Error('Browser storage is full. Your existing leagues were retained.');
+    state.manual=next; state.selected = "m:" + league.id; populateLeagues();
     state.editing = null; state.pendingImport = null; $("manual-form").reset();
     $("manual-starters").required = true; $("import-preview").hidden = true;
     $("manual-import").open = false;
@@ -484,6 +553,7 @@ $("manual-form").addEventListener("submit", event => {
 $("manual-cancel").addEventListener("click", () => {
   state.editing = null; state.pendingImport = null; $("manual-form").reset();
   $("manual-starters").required = true; $("import-preview").hidden = true; $("manual-import").open = false;
+  status("Import cancelled.");
 });
 $("manual-platform").addEventListener("change", () => {
   $("manual-starters").required = $("manual-platform").value !== "Sleeper Pick’em";
@@ -497,25 +567,64 @@ $("espn-form").addEventListener("submit", async event => {
     if ($("espn-team").value) params.set("team_id", $("espn-team").value);
     const data = await getJson("/api/espn?" + params);
     if (data.needs_team) {
-      note.textContent = "Enter your team number: " + data.teams.map(team => team.id + " = " + team.name).join("; ");
+      const select=$("espn-team");select.replaceChildren(node('option','','Choose your team'));
+      select.options[0].value='';
+      for(const team of data.teams) {const option=node('option','',team.name);option.value=team.id;select.append(option);}
+      $("espn-team-label").hidden=false;
+      note.textContent = "League found. Choose your team by name to finish.";
       return;
     }
     const snapshot = data.snapshot;
     const existing = state.manual.find(league => league.platform === "ESPN" && league.url === snapshot.url);
-    editManual({...snapshot, id: existing?.id || null});
-    state.pendingImport = {bench: snapshot.bench, source: snapshot.source, teamName: snapshot.teamName};
-    previewRoster();
-    note.textContent = "Read " + snapshot.teamName + ". Review the roster below, then save it.";
-  } catch (error) { note.textContent = error.message; }
+    const league={...snapshot,id:existing?.id || crypto.randomUUID()};
+    const next=existing ? state.manual.map(l=>l.id===existing.id ? league : l) : [...state.manual,league];
+    if (!remember(manualKey,next)) throw Error('Browser storage is full. Your existing leagues were retained.');
+    state.manual=next;state.selected='m:'+league.id;populateLeagues();setView('lineup');
+    note.textContent='Connected '+snapshot.teamName+'.';status('ESPN roster saved · starters and bench included.');
+  } catch (error) {
+    note.replaceChildren(node('span','',error.message+' '));
+    const fallback=node('button','text-button','Paste roster instead');fallback.type='button';fallback.addEventListener('click',()=>choosePlatform('ESPN',true));note.append(fallback);
+  }
   finally { button.disabled = false; }
 });
+$("espn-team").addEventListener('change',()=>{if($("espn-team").value)$("espn-form").requestSubmit();});
+$("espn-url").addEventListener('input',()=>{$("espn-team").value='';$("espn-team-label").hidden=true;});
+function choosePlatform(platform, paste=false) {
+  document.querySelectorAll('[data-connect-platform]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.connectPlatform===platform)));
+  $("sleeper-connect-panel").hidden=platform!=='Sleeper';
+  $("espn-connect-panel").hidden=platform!=='ESPN' || paste;
+  const manual=platform==='CBS' || platform==='Sleeper Pick’em' || paste;
+  $("manual-import").hidden=!manual;$("manual-import").open=manual;
+  if(manual) {
+    $("cbs-export").hidden=platform!=='CBS';
+    $("manual-title").textContent=platform==='CBS' ? 'Import your CBS roster' : platform==='Sleeper Pick’em' ? 'Add your Pick’em league' : 'Paste your '+platform+' roster';
+    $("manual-instructions").textContent=platform==='CBS' ? 'Open your team page, click Export at the bottom, then choose the CSV below. We check the starter and bench counts before saving. This is a local snapshot; import a newer export after roster changes.' : platform==='Sleeper Pick’em' ? 'Save a league name and link for quick access. Picks are not imported yet.' : 'Paste a table with Slot, Player and Status columns, or slot | player | status rows. Include starters and bench. We preview it before saving; your snapshot stays in this browser.';
+    state.editing=null;state.pendingImport=null;$("manual-form").reset();
+    $("manual-platform").value=platform;if(paste && platform==='ESPN')$("manual-url").value=$("espn-url").value;$("manual-name").value=platform==='Sleeper Pick’em' ? 'Pick’em league' : platform+' league';
+    $("manual-week").value=activeWeek() || '';$("manual-starters").required=platform!=='Sleeper Pick’em';
+    $("import-preview").hidden=true;
+  }
+}
+document.querySelectorAll('[data-connect-platform]').forEach(button=>button.addEventListener('click',()=>choosePlatform(button.dataset.connectPlatform)));
+$("manual-starters").addEventListener('input',previewRoster);
+$("roster-file").addEventListener('change',async()=>{
+  const file=$("roster-file").files[0];if(!file)return;
+  try {
+    if(file.size>500000)throw Error('Choose one roster export under 500 KB.');
+    const text=await file.text(), rows=parseStarters(text);
+    $("manual-starters").value=text;
+    state.pendingImport={source:'CBS roster export',bench:rows.filter(r=>r.slot==='BN')};
+    previewRoster();status('Roster read · '+rows.filter(r=>r.slot!=='BN').length+' starters and '+rows.filter(r=>r.slot==='BN').length+' bench players. Review and add the league.');
+  } catch(error){status(error.message,true);}
+});
+$("manual-week").addEventListener('input',()=>{$("manual-week").dataset.userSet="true";});
 $("connect-form").addEventListener("submit", event => { event.preventDefault(); findLeagues(); });
 $("league").addEventListener("change", () => selectLeague($("league").value));
 $("refresh").addEventListener("click", refresh);
 $("sample").addEventListener("click", async () => {
   try {
     const data = await getJson("/api/sample");
-    state.reports = [data.report]; state.freshness = data.freshness; state.sample = true; state.engineVersion = 2;
+    state.reports = [data.report]; state.freshness = data.freshness; state.sample = true; state.engineVersion = 3;
     populateLeagues(); status("Showing a saved week-3 injury scenario. Nothing here is live."); setView("home");
   } catch (error) { status(error.message, true); }
 });
@@ -536,6 +645,11 @@ $("manual-week").value = activeWeek() || 1;
 for (let week = 1; week <= 18; week++) { const option = node("option", "", week); option.value = week; $("week").append(option); }
 state.sleeperIds = state.reports.map(report => report.league.id);
 populateLeagues(); setView(location.hash.slice(1) || "home"); if (state.username) refresh(state.username, false);
+if(!state.currentWeek) getJson('/api/season-state').then(info=>{
+  state.currentWeek=info.week;state.season=info.season;
+  if(!state.editing && !$("manual-week").dataset.userSet)$("manual-week").value=info.week;
+  render();
+}).catch(()=>{if(!state.editing && !$("manual-week").dataset.userSet)$("manual-week").value='';});
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {
   // The normal interface still works when browser policy disallows offline storage.

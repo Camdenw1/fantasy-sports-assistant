@@ -70,6 +70,7 @@ class RefreshStore:
             temporary.replace(target)
             with self.lock:
                 job.update(status='ready', saved=saved, error=None)
-        except Exception:
+        except Exception as exc:
+            message = str(exc) if isinstance(exc, ValueError) else 'Refresh unavailable. Your last successful report is retained; try again shortly.'
             with self.lock:
-                job.update(status='failed', error='Refresh unavailable. Your last successful report is retained; try again shortly.')
+                job.update(status='failed', error=message)

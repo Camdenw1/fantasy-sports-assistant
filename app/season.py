@@ -4,7 +4,10 @@ import json
 import math
 import pathlib
 import uuid
+import threading
 from concurrent.futures import ThreadPoolExecutor
+from season_scoring import CAMDEN, SLOTS, STANDARD, weekly_score
+from season_rosters import context as league_context, apply as apply_roster
 
 POSITIONS = {'QB', 'RB', 'WR', 'TE'}
 POOLS = ('FLEX', 'QB', 'RB', 'WR', 'TE')
@@ -13,7 +16,7 @@ MOVE_MIN_DAYS = 5      # compare against a snapshot at least this old
 HISTORY_DAYS = 60
 
 
-def aggregate(weekly, season, start, end=17):
+def aggregate(weekly, season, start, end=17, settings=None, dad=False):
     players = {}
     providers = set()
     source_times = []
@@ -47,9 +50,16 @@ def aggregate(weekly, season, start, end=17):
                 continue
             player = players.setdefault(pid, {'id': pid, 'name': name,
                 'position': pl['position'], 'team': row.get('team') or pl.get('team'),
-                'injury': pl.get('injury_status'), 'points': 0., 'games': 0, 'opponents': {}})
-            player['points'] += stats['pts_half_ppr']
+                'injury': pl.get('injury_status'), 'points': 0., 'games': 0, 'opponents': {}, 'projected_weeks': []})
+            if settings is not None or dad:
+                for key,value in stats.items():
+                    if isinstance(value,(int,float)) and not math.isfinite(value):
+                        raise ValueError('Non-finite projected statistics')
+                player['points'] += weekly_score(stats, pl['position'], settings, dad)
+            else:
+                player['points'] += stats['pts_half_ppr']
             player['games'] += 1
+            player['projected_weeks'].append(week)
             if row.get('opponent'):
                 player['opponents'][week] = row['opponent']
             providers.add(row.get('company') or 'Sleeper')
@@ -68,6 +78,7 @@ def aggregate(weekly, season, start, end=17):
         p['points'] = round(p['points'], 1)
         p['per_game'] = round(p['points'] / p['games'], 1)
         weeks = playing.get(p['team'])
+        p['projection_complete'] = bool(weeks) and set(p['projected_weeks']) == weeks
         byes = [w for w in range(start, end + 1) if weeks and w not in weeks]
         p['bye'] = byes[0] if len(byes) == 1 else None
     assign_ranks(ranked)
@@ -81,7 +92,9 @@ def assign_ranks(ranked):
     """Overall flex/QB rank, positional rank, and tier within each pool."""
     for pool in POOLS:
         members = [p for p in ranked if (p['position'] != 'QB' if pool == 'FLEX' else p['position'] == pool)]
-        breaks = tier_breaks([p['points'] for p in members], *TIER_SHAPE[pool])
+        if pool == 'FLEX' and any('value_above_replacement' in p for p in members):
+            members.sort(key=lambda p:(-p['value_above_replacement'],-p['points'],p['name']))
+        breaks = tier_breaks([p.get('value_above_replacement',p['points']) if pool=='FLEX' else p['points'] for p in members], *TIER_SHAPE[pool])
         tier = 1
         for i, p in enumerate(members):
             if i in breaks:
@@ -167,6 +180,7 @@ class History:
     snapshot at least MOVE_MIN_DAYS old. Only complete builds are recorded."""
     def __init__(self, path):
         self.path = pathlib.Path(path)
+        self.lock = threading.Lock()
 
     def load(self):
         try:
@@ -176,8 +190,15 @@ class History:
             return {}
 
     def apply(self, result, today=None):
+        with self.lock:
+            self._apply(result,today)
+
+    def _apply(self, result, today=None):
         today = today or dt.date.today()
-        snapshots = self.load()
+        envelope = self.load()
+        scope = str(result['season']) + ':' + json.dumps(result.get('profile',{}),sort_keys=True)
+        snapshots = envelope.get(scope,{})
+        if not isinstance(snapshots,dict): snapshots={}
         cutoff = (today - dt.timedelta(days=MOVE_MIN_DAYS)).isoformat()
         older = sorted(d for d in snapshots if d <= cutoff)
         if older:
@@ -193,28 +214,66 @@ class History:
         snapshots = {d: v for d, v in snapshots.items() if d >= keep}
         self.path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self.path.with_name(self.path.name + '.' + uuid.uuid4().hex + '.tmp')
-        temporary.write_text(json.dumps(snapshots))
+        envelope[scope]=snapshots
+        temporary.write_text(json.dumps(envelope))
         temporary.replace(self.path)
 
 
-def build(fetch, history=None):
+def build(fetch, history=None, profile="standard", username=None, league_id=None, source_fetch=None):
     state = fetch('https://api.sleeper.app/v1/state/nfl')
     season = int(state['season'])
     week = int(state.get('week') or state.get('display_week') or 0)
     start = max(1, week + 1)
     if state.get('season_type') != 'regular' or start > 17:
         raise ValueError('No remaining full regular-season fantasy weeks available')
+    ctx=None
+    settings=None
+    slots=[]
+    label='Half PPR'
+    if profile == 'camden': settings,slots,label=CAMDEN,SLOTS['camden'],'Camden scoring · 12 teams'
+    elif profile == 'dad': slots,label=SLOTS['dad'],'Dad scoring · 10 teams'
+    elif profile == 'league':
+        ctx=league_context(fetch,username,league_id,season)
+        settings,slots,label=ctx['settings'],ctx['slots'],ctx['name']
+        # Large metadata read is shared and dated, not repeated for each league.
+        ctx['player_metadata']=(source_fetch or fetch)('https://api.sleeper.app/v1/players/nfl')
+    read=source_fetch or fetch
+    projection_urls=[]
     query = '&'.join('position[]=' + pos for pos in sorted(POSITIONS))
     def load(w):
-        return w, fetch(f'https://api.sleeper.app/projections/nfl/{season}/{w}?season_type=regular&{query}')
+        url=f'https://api.sleeper.app/projections/nfl/{season}/{w}?season_type=regular&{query}'
+        projection_urls.append(url)
+        return w, read(url)
     with ThreadPoolExecutor(max_workers=4) as pool:
         weekly = dict(pool.map(load, range(start, 18)))
-    result = aggregate(weekly, season, start)
+    result = aggregate(weekly, season, start, settings=settings, dad=profile=='dad')
+    result['profile']={'id':profile,'league_id':league_id,'label':label,'slots':slots,
+                       'scoring':'dad-buckets' if profile=='dad' else STANDARD if settings is None else settings}
+    if hasattr(read,'read_at'):
+        stamps=[read.read_at(url) for url in projection_urls]
+        result['fetched_at']=dt.datetime.fromtimestamp(min(stamps),dt.timezone.utc).isoformat()
+    issues=[]
+    revision=result['source_updated_at']
+    if not revision: issues.append('Provider revision date unavailable')
+    elif (dt.datetime.now(dt.timezone.utc)-dt.datetime.fromisoformat(revision)).total_seconds()>72*3600:
+        issues.append('Projection source is more than 72 hours old')
+    projected_keys={k for rows in weekly.values() for row in rows for k in (row.get('stats') or {})}
+    from season_scoring import LINEAR
+    result['scoring_notes']=['Not projected by source: '+', '.join(sorted(k for k,v in (settings or {}).items() if v and k in LINEAR and not k.startswith('bonus_') and k not in projected_keys))] if any(v and k in LINEAR and not k.startswith('bonus_') and k not in projected_keys for k,v in (settings or {}).items()) else []
+    result['health']={'issues':issues,'weeks_checked':len(weekly)}
+    if ctx:
+        apply_roster(result,ctx)
+    # Scarcity adjusts the general skill-player list using the actual starter slots.
+    # Position lists still order by points; no ADP/draft floors carry into ROS.
+    if slots:
+        teams=ctx['teams'] if ctx else (10 if profile=='dad' else 12)
+        result['replacement']=replacement(result['players'],slots,teams)
+        assign_ranks(result['players'])
     # Schedule strength is optional context: a stats failure leaves it out rather than
     # failing the projection ranking. The in-progress week is never counted.
     try:
         def stats(w):
-            return w, fetch(f'https://api.sleeper.app/stats/nfl/{season}/{w}?season_type=regular&{query}')
+            return w, read(f'https://api.sleeper.app/stats/nfl/{season}/{w}?season_type=regular&{query}')
         with ThreadPoolExecutor(max_workers=4) as pool:
             completed = {w: rows for w, rows in pool.map(stats, range(1, week)) if isinstance(rows, list) and rows}
         if len(completed) >= 2:
@@ -226,4 +285,22 @@ def build(fetch, history=None):
     if history:
         history.apply(result)
     # RefreshStore persists only complete successful results.
-    return {'engine_version': 2, 'reports': [result]}
+    return {'engine_version': 3, 'reports': [result]}
+
+
+def replacement(players, slots, teams):
+    """Allocate league starter demand once, including flex; bench is not replacement."""
+    needs={pos:slots.count(pos)*teams for pos in POSITIONS}
+    flex=[slot for slot in slots if slot not in POSITIONS]
+    selected=set()
+    for pos,count in needs.items():
+        selected.update(p['id'] for p in [p for p in players if p['position']==pos][:count])
+    from season_scoring import ELIGIBLE
+    for slot in sorted(flex,key=lambda x:len(ELIGIBLE[x])):
+        selected.update(p['id'] for p in [p for p in players if p['id'] not in selected and p['position'] in ELIGIBLE[slot]][:teams])
+    levels={}
+    for pos in POSITIONS:
+        beyond=[p for p in players if p['position']==pos and p['id'] not in selected]
+        levels[pos]=beyond[0]['points'] if beyond else 0
+    for p in players: p['value_above_replacement']=round(p['points']-levels[p['position']],1)
+    return levels

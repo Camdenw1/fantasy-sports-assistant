@@ -179,48 +179,197 @@ function leagueStrip() {
   }
   return section;
 }
-function renderHome(main) {
-  if (state.sample) main.append(node("div", "notice", "Saved week-3 example. Nothing here is current."));
-  const issues = state.reports.flatMap(report => quality(report).map(issue => report.league.name + ": " + issue));
+function findPlayer(report, id) {
+  for (const row of report.slots) {
+    if (row.current?.id === id) return row.current;
+    if (row.recommended?.id === id) return row.recommended;
+  }
+  return [...(report.bench || []), ...(report.reserve || [])].find(p => p.id === id) || null;
+}
+function injuryBadge(status) {
+  if (!status) return null;
+  const short = {Questionable:"Q", Doubtful:"D", Out:"Out", IR:"IR", PUP:"PUP", Sus:"Sus"}[status] || status;
+  const badge = node("span", "injury-badge" + (["Questionable"].includes(status) ? " mild" : ""), short);
+  badge.title = status; badge.setAttribute("aria-label", "Injury status: " + status);
+  return badge;
+}
+function miniPlayer(player, detail) {
+  const block = node("div", "mini-player");
+  if (!player) return add(block, node("span", "player-name muted", "Empty slot"));
+  const mark = teamMark(player.team); if (mark) block.append(mark);
+  const copy = node("div", "player-copy");
+  const name = node("span", "player-name", player.name);
+  const badge = injuryBadge(player.injury); if (badge) name.append(" ", badge);
+  add(copy, name, node("span", "player-meta", detail ?? [player.pos, player.team,
+    player.game_state === "bye" ? "Bye" : player.opp ? "vs " + player.opp : null].filter(Boolean).join(" · ")));
+  block.append(copy); return block;
+}
+function lineupVerdict(report) {
+  const projectedTotal = number(report.totals.current) + " projected";
+  if (activeWeek() && report.league.week !== activeWeek())
+    return {kind:"paused", title:"Showing week " + report.league.week + " — refresh for week " + activeWeek(), detail:"Suggestions return once this week’s roster loads."};
+  if (state.engineVersion !== 3) return {kind:"paused", title:"Refresh to load suggestions", detail:"The saved report is from an older version."};
+  if (report.slots.every(row => row.locked)) return {kind:"done", title:"Week " + report.league.week + " is locked", detail:number(report.totals.current) + " points"};
+  if (reportGaps(report).length) return {kind:"paused", title:"Suggestions paused",
+    detail:"No projection yet for " + reportGaps(report).map(p => p.name).join(", ") + ". Check Sleeper before kickoff."};
+  const forced = report.slots.filter(row => !row.locked && (!row.current || row.current.game_state === "bye" || inactive(row.current)));
+  const gain = report.swaps.reduce((sum, swap) => sum + Math.max(0, swap.delta || 0), 0);
+  if (forced.length) {
+    const first = forced[0].current;
+    return {kind:"urgent", title: forced.length > 1 ? forced.length + " starters can’t play" :
+      (first ? first.name + " is " + (first.game_state === "bye" ? "on bye" : first.injury) : forced[0].slot + " is empty") + " — swap needed",
+      detail: report.swaps.length ? "Make the changes below in Sleeper." : "No healthy replacement on your bench. Check the pickups below."};
+  }
+  if (report.swaps.length && gain >= 0.5) return {kind:"upgrade",
+    title: report.swaps.length + (report.swaps.length === 1 ? " change adds +" : " changes add +") + number(gain) + " pts",
+    detail: projectedTotal + " now · " + number(report.totals.recommended) + " with the changes"};
+  return {kind:"good", title:"Your lineup is set", detail:"No injured or bye-week starters · " + projectedTotal};
+}
+function verdictBanner(report) {
+  const verdict = lineupVerdict(report);
+  const icon = {urgent:"!", upgrade:"↑", good:"✓", done:"✓", paused:"…"}[verdict.kind];
+  const banner = node("section", "verdict " + verdict.kind);
+  const text = add(node("div", "verdict-copy"), node("h2", "", verdict.title), node("p", "", verdict.detail));
+  const facts = [];
+  if (report.opponent?.team_name) facts.push("vs " + report.opponent.team_name);
+  if (report.opponent && verdict.kind !== "paused" && verdict.kind !== "done")
+    facts.push("Win chance " + Math.round((verdict.kind === "good" ? report.opponent.win_prob_current : report.opponent.win_prob_recommended) * 100) + "%");
+  if (facts.length) text.append(node("p", "verdict-facts", facts.join(" · ")));
+  add(banner, node("span", "verdict-icon", icon), text, actionLink(report));
+  return banner;
+}
+function swapList(report) {
+  const swaps = report.swaps.filter(swap => (swap.delta || 0) > 0 || report.slots.some(row => row.current?.id === swap.out && inactive(row.current)));
+  if (!swaps.length || lineupVerdict(report).kind === "paused") return null;
+  const section = add(node("section", "home-block"), node("h3", "", "Suggested lineup changes"));
+  const list = node("ol", "swap-list");
+  for (const swap of swaps) {
+    const incoming = findPlayer(report, swap.in), outgoing = findPlayer(report, swap.out);
+    const row = node("li", "swap-row");
+    add(row, node("span", "slot-chip", (swap.slot || "").replace("REC_FLEX", "W/TE")),
+      add(node("div", "swap-side in"), node("span", "swap-verb", "Start"), miniPlayer(incoming || {name: swap.in_name}), node("span", "swap-proj", projected(incoming))),
+      add(node("div", "swap-side out"), node("span", "swap-verb", "Bench"), miniPlayer(outgoing || (swap.out_name ? {name: swap.out_name} : null)), node("span", "swap-proj", projected(outgoing))),
+      node("span", "swap-gain", "+" + number(swap.delta)));
+    if (swap.reason) row.append(node("p", "swap-reason", swap.reason));
+    list.append(row);
+  }
+  section.append(list);
+  return section;
+}
+function compactLineup(report) {
+  const section = add(node("section", "home-block"), node("h3", "", "Starting lineup"));
+  const table = node("table", "compact-lineup");
+  const body = node("tbody");
+  for (const row of report.slots) {
+    const tr = node("tr", (row.change && !row.locked ? "changed " : "") + (inactive(row.current) || row.current?.game_state === "bye" ? "problem" : ""));
+    const pts = node("td", "num", projected(row.current));
+    if (row.change && !row.locked && row.recommended) pts.title = "Suggested: " + row.recommended.name;
+    const slot = node("th", "slot-cell"); slot.scope = "row";
+    add(tr, add(slot, node("span", "slot-chip", row.slot.replace("REC_FLEX", "W/TE"))),
+      add(node("td"), miniPlayer(row.current)), pts,
+      node("td", "lock-cell", row.locked ? "Locked" : row.current?.kickoff ? dateTime(row.current.kickoff) : ""));
+    body.append(tr);
+  }
+  table.append(body); section.append(table);
+  if (report.bench?.length || report.reserve?.length) {
+    const bench = node("details", "bench-disclosure");
+    bench.append(node("summary", "", "Bench · " + (report.bench?.length || 0) + (report.reserve?.length ? " · Reserve " + report.reserve.length : "")));
+    const t = node("table", "compact-lineup"), tb = node("tbody");
+    for (const p of [...(report.bench || []), ...(report.reserve || [])]) {
+      const tr = node("tr", inactive(p) ? "problem" : "");
+      add(tr, add(node("th", "slot-cell"), node("span", "slot-chip", (report.reserve || []).includes(p) ? "RES" : "BN")),
+        add(node("td"), miniPlayer(p)), node("td", "num", projected(p)), node("td", "lock-cell", p.locked ? "Locked" : ""));
+      tb.append(tr);
+    }
+    t.append(tb); bench.append(t); section.append(bench);
+  }
+  return section;
+}
+state.pickups = {};
+async function loadPickups(report) {
+  const id = report.league.id, entry = state.pickups[id];
+  if (state.sample || (entry && (entry.loading || Date.now() - entry.at < 10 * 60000))) return;
+  state.pickups[id] = {loading: true, at: Date.now()};
+  const params = new URLSearchParams({profile: "league", league_id: id, username: state.username});
+  try {
+    let job = await getJson("/api/season?" + params + "&start=1");
+    const deadline = Date.now() + 90000;
+    while (job.status === "refreshing" && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      job = await getJson("/api/season?" + params);
+    }
+    const data = job.data?.reports?.[0];
+    if (!data?.roster) throw Error(job.error || "Pickups unavailable");
+    state.pickups[id] = {at: Date.now(), roster: data.roster, players: Object.fromEntries(data.players.map(p => [p.id, p])), weeks: [data.start_week, data.end_week]};
+  } catch (error) { state.pickups[id] = {at: Date.now(), error: error.message}; }
+  if (state.view === "home") render();
+}
+function pickupBlock(report) {
+  const section = add(node("section", "home-block"), node("h3", "", "Waiver pickups"));
+  if (state.sample) { section.append(node("p", "meta", "Pickups appear for live leagues, using your league’s real rosters.")); return section; }
+  const entry = state.pickups[report.league.id];
+  loadPickups(report);
+  if (!entry || entry.loading) { section.append(node("p", "meta", "Checking available players in your league…")); return section; }
+  if (entry.error) { section.append(node("p", "meta", "Couldn’t check waivers right now. " + entry.error)); return section; }
+  const {roster, players} = entry;
+  if (roster.issues.length) section.append(node("p", "meta", "Pickup suggestions paused: " + roster.issues.join("; ") + "."));
+  else if (!roster.suggestions.length) section.append(node("p", "meta", "No available player clearly beats your bench right now."));
+  else {
+    const list = node("ol", "swap-list");
+    for (const move of roster.suggestions) {
+      const add_ = players[move.pickup], drop = players[move.drop];
+      const row = node("li", "swap-row");
+      add(row, node("span", "slot-chip", add_?.position || ""),
+        add(node("div", "swap-side in"), node("span", "swap-verb", "Add"), miniPlayer(add_ && {...add_, pos: add_.position}, add_ && [add_.position + (add_.ranks?.[add_.position] || ""), add_.team].filter(Boolean).join(" · ")), node("span", "swap-proj", number(add_?.points))),
+        add(node("div", "swap-side out"), node("span", "swap-verb", "Drop"), miniPlayer(drop && {...drop, pos: drop.position}, drop && [drop.position + (drop.ranks?.[drop.position] || ""), drop.team].filter(Boolean).join(" · ")), node("span", "swap-proj", number(drop?.points))),
+        node("span", "swap-gain", "+" + number(move.projection_edge)));
+      row.append(node("p", "swap-reason", move.reason + " · rest-of-season points, weeks " + entry.weeks[0] + "–" + entry.weeks[1]));
+      list.append(row);
+    }
+    section.append(list);
+  }
+  const more = node("a", "text-link", "See all available players →"); more.href = "/players.html";
+  section.append(more);
+  return section;
+}
+function dataChecks(main) {
+  const issues = state.reports.flatMap(report => quality(report).map(issue => (state.reports.length > 1 ? report.league.name + ": " : "") + issue));
   const stale = state.manual.filter(league => Date.now() - Date.parse(league.savedAt) > 24 * 3600000);
   if (stale.length) issues.push(stale.map(league => league.name).join(", ") + ": manual snapshot over 24 hours old");
-  const olderWeek = state.manual.filter(league => activeWeek() && league.week !== activeWeek());
-  if (olderWeek.length) issues.push(olderWeek.map(league => league.name).join(", ") + ": snapshot from a different week");
-  main.append(node("h2", "", "This week"));
-  const items = [...state.reports.flatMap(sleeperItems), ...state.manual.flatMap(manualItems)]
-    .sort((a, b) => a.priority - b.priority);
-  const pulse = node('section', 'home-pulse');
-  const injuries = state.reports.flatMap(r => [...r.slots.map(s=>s.current), ...(r.bench || []), ...(r.reserve || [])]).filter(p=>p?.injury);
-  injuries.push(...state.manual.flatMap(l=>[...l.starters,...(l.bench || [])]).filter(p=>['Questionable','Doubtful','Out','IR','PUP','Sus'].includes(p.status)));
-  for (const [value,label] of [[state.reports.length+state.manual.length,'Connected leagues'],[items.length,'Lineup actions'],[injuries.length,'Injury designations']])
-    pulse.append(add(node('div'),node('strong','metric',value),node('span','caption',label)));
-  main.prepend(pulse);
-  if (!items.length && !issues.length) main.append(add(node("section", "card clear"), node("span", "clear-mark", issues.length ? "△" : "✓"),
-    add(node("div"), node("h3", "", issues.length ? "Review before kickoff" : "Your lineup looks settled"),
-      node("p", "", issues.length ? "Review the data checks below before treating your lineup as settled." :
-        "Nothing stands out in the data we have. Check injuries again before kickoff."))));
-  else items.forEach(item => main.append(item.element));
+  if (!issues.length) return;
+  const details = node("details", "health-details");
+  details.append(node("summary", "", "Data checks · " + issues.length));
+  const list = node("ul", "check-list"); issues.forEach(issue => list.append(node("li", "", issue)));
+  const update = node("button", "quiet", "Refresh data"); update.disabled = state.loading; update.addEventListener("click", () => refresh());
+  add(details, list, update); main.append(details);
+}
+function renderHome(main) {
+  if (state.sample) main.append(node("div", "notice", "Saved week-3 example. Nothing here is current."));
+  const single = state.reports.length + state.manual.length === 1;
   for (const report of state.reports) {
-    const checks=quality(report);
-    if (checks.length) {
-      const check=card(report.league.name+' · Needs attention','Review league data',checks.join(' · '),'check');
-      const review=node('button','quiet','Review lineup');review.addEventListener('click',()=>selectLeague('s:'+report.league.id));
-      const update=node('button','text-button','Refresh data');update.disabled=state.loading;update.addEventListener('click',()=>refresh());
-      check.append(add(node('div','manual-buttons'),review,update));main.append(check);
+    const section = node("section", "league-home");
+    if (!single) {
+      const head = add(node("div", "league-home-head"), node("h2", "", report.league.name));
+      const view = node("button", "text-button", "Full lineup →"); view.addEventListener("click", () => selectLeague("s:" + report.league.id));
+      section.append(add(head, view));
     }
-    const benchInjuries=[...(report.bench || []), ...(report.reserve || [])].filter(p=>p.injury);
-    if (benchInjuries.length) {
-      const check=card(report.league.name+' · Bench & reserve','Check your injured players',benchInjuries.map(p=>p.name+' · '+p.injury).join('; '),'check',report);
-      main.append(check);
-    }
+    section.append(verdictBanner(report));
+    const swaps = swapList(report); if (swaps) section.append(swaps);
+    const grid = node("div", "home-grid");
+    add(grid, compactLineup(report), pickupBlock(report));
+    section.append(grid);
+    main.append(section);
   }
-  for (const league of state.manual.filter(l=>Date.now()-Date.parse(l.savedAt)>24*3600000 || (activeWeek() && l.week!==activeWeek()))) {
-    const check=card(league.platform+' · Roster update',league.name+' needs a newer roster','Saved '+age(league.savedAt)+' · Week '+league.week+'. Bring over the latest roster before using it for decisions.','check');
-    const update=node('button','quiet','Update roster');update.addEventListener('click',()=>editManual(league));check.append(update);main.append(check);
+  for (const league of state.manual) {
+    const section = node("section", "league-home");
+    if (!single) section.append(add(node("div", "league-home-head"), node("h2", "", league.name + " · " + league.platform)));
+    const items = manualItems(league);
+    if (items.length) items.forEach(item => section.append(item.element));
+    else section.append(add(node("section", "verdict good"), node("span", "verdict-icon", "✓"),
+      add(node("div", "verdict-copy"), node("h2", "", "No problems in your saved roster"), node("p", "", "Snapshot from " + age(league.savedAt) + ". Re-import after roster moves."))));
+    main.append(section);
   }
-  const season=card('Roster planning','Review your rest-of-season players','See your highlighted roster, league-adjusted rankings and available players.','');
-  const seasonLink=node('a','action','Open my rankings →');seasonLink.href='/players.html';season.append(seasonLink);main.append(season);
-  add(main, node("h2", "section-head", "Your leagues"), leagueStrip());
+  dataChecks(main);
 }
 function playerCell(player) {
   const cell = node("td");
@@ -355,7 +504,10 @@ function render() {
   const titles = {home: ["Overview", ""],
     leagues: ["Leagues", "Connect a platform, update a roster, or pick a lineup to review."],
     lineup: ["Lineup", ""]};
+  const onlyLeague = state.reports.length + state.manual.length === 1 ? (state.reports[0]?.league.name || state.manual[0]?.name) : null;
+  titles.home[0] = onlyLeague || "This week";
   $("page-title").textContent = titles[state.view][0];
+  $("lineup-tab").hidden = Boolean(onlyLeague);
   $("page-description").textContent = titles[state.view][1];
   $("season-context").textContent = "Football · " + (state.season || state.reports[0]?.league.season || new Date().getFullYear()) +
     (activeWeek() ? " · Week " + activeWeek() : " season");

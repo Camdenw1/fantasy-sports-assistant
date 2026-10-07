@@ -56,7 +56,7 @@ def discover(username):
     return {
         "username": user.get("display_name") or username,
         "season": season,
-        "week": int(state.get("display_week") or state["week"]),
+        "week": int(state.get("week") or state["display_week"]),
         "fetched_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "leagues": [
             {"id": item["league_id"], "name": item["name"], "status": item.get("status")}
@@ -125,7 +125,7 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == '/api/season-state':
             try:
                 state = SEASON_SOURCES('https://api.sleeper.app/v1/state/nfl')
-                self.reply(200, {'season': int(state['season']), 'week': int(state.get('display_week') or state['week'])})
+                self.reply(200, {'season': int(state['season']), 'week': int(state.get('week') or state['display_week'])})
             except Exception:
                 self.reply(502, {'error': 'Current week unavailable. Choose the snapshot week.'})
             return

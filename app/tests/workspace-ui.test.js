@@ -36,9 +36,17 @@ vm.runInContext(fs.readFileSync(path.join(__dirname,'../app.js'),'utf8'),context
   assert.match(get('content').textContent,/Bench · 1BNFixture bench/);
   assert.match(get('content').textContent,/Reserve · 1RESFixture reserve/);
   vm.runInContext("state.reports[0].sources.projection_gaps=[{name:'Missing fixture'}];setView('home')",context);
-  assert.match(get('content').textContent,/Review league dataMissing projections: Missing fixture/);
+  // A projection gap pauses suggestions in the verdict and lists the gap under data checks.
+  assert.match(get('content').textContent,/Suggestions paused/);
+  assert.match(get('content').textContent,/Data checks · 1Missing projections: Missing fixture/);
   assert.match(get('content').textContent,/Refresh data/);
-  assert.match(get('content').textContent,/Check your injured playersFixture reserve · IR/);
+  // Bench and reserve injuries are shown on the players themselves, not as separate cards.
+  assert.match(get('content').textContent,/Bench · 1 · Reserve 1/);
+  assert.match(get('content').textContent,/Fixture reserve IR/);
+  vm.runInContext("state.reports[0].sources.projection_gaps=[];state.reports[0].swaps=[{in:'2',in_name:'Fixture bench',out:'1',out_name:'Fixture starter',slot:'RB',delta:2.5,reason:'Higher projection'}];state.reports[0].totals.recommended=12.5;render()",context);
+  assert.match(get('content').textContent,/1 change adds \+2.5 pts/);
+  assert.match(get('content').textContent,/StartFixture bench/);
+  assert.match(get('content').textContent,/BenchFixture starter/);
   vm.runInContext("choosePlatform('CBS')",context);
   assert.equal(get('sleeper-connect-panel').hidden,true);
   assert.equal(get('espn-connect-panel').hidden,true);

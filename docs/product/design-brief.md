@@ -3,9 +3,12 @@
 Personal reference: `/Users/camdenweber/Documents/Second Brain/Design/Personal Web Design System.md`.
 
 - Priority: dependable everyday use, then clear information, then visual character.
-- Identity: a personal fantasy scorecard; white surfaces, neutral charcoal text,
-  red (`#980F26`) with translucent selected fills (6–8%) and subtle markers (55%).
-  Use alpha on backgrounds and borders rather than fading whole controls or labels.
+- Identity: a personal fantasy scorecard in NFL colors (Camden, 6 Oct 2026, replacing
+  the burgundy): white surfaces, neutral charcoal text, league navy (`#013369`) for
+  headings, actions and translucent selected fills (6–8%); NFL red (`#D50A0A`) for
+  markers, the active tab and anything urgent. Use alpha on backgrounds and borders
+  rather than fading whole controls or labels. Navy here is a deliberate project
+  exception to the global system's "navy is not a default"; Camden asked for it.
 - Type: sturdy Georgia page headings; system sans-serif for controls, players,
   explanations, and tabular numbers. Balanced spacing, not compressed rows.
 - Motif: official team marks beside player names. Assets are local, have fixed
@@ -22,5 +25,5 @@ Personal reference: `/Users/camdenweber/Documents/Second Brain/Design/Personal W
 - Season boundary: Players opens current remaining-week projections from Sleeper.
   September 7 draft data stays in a separate archive; draft values are not ROS values.
 
-User priorities are above defaults in the global reference. The red treatment is
+User priorities are above defaults in the global reference. The NFL treatment is
 project-specific and does not change the user's general preferred palette.

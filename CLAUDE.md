@@ -250,8 +250,15 @@ paths when modifying refresh logic. Generated draft data remains frozen.
 
 Lineup report engine version 3 includes `bench` and `reserve` player references.
 Render these from the current roster, separate from starter recommendations;
-never synthesize zero points for missing projections. Home exposes data checks
-and bench/reserve injuries as visible action cards. Connection setup selects a
+never synthesize zero points for missing projections. Home (Camden, 6 Oct 2026)
+does the work for him: a one-line lineup verdict, concrete "Start X / Bench Y"
+swaps with team marks and projections, waiver add/drop pairs from the league ROS
+roster suggestions, and a compact lineup with bench in a disclosure. Data checks
+sit in one collapsed list, not cards; bench/reserve injuries show as badges on the
+players. With exactly one league connected, Home is that league (its name is the
+title, no multi-league scaffolding). Lineups use Sleeper `week` (advances Tuesday),
+not `display_week`, which shows last week's finished games until Wednesday. A
+starter-pool player ruled Out/IR without a projection is not a projection gap. Connection setup selects a
 platform first: username-only Sleeper, URL and named-team selection for public
 ESPN, guided roster paste for CBS/private ESPN. Snapshots remain local; do not
 claim authenticated sync. ROS-owned rows have a translucent red fill and marker.
@@ -262,7 +269,10 @@ claim authenticated sync. ROS-owned rows have a translucent red fill and marker.
 rankings from current Sleeper weekly data. Keep this independent from the frozen
 draft pipeline. Remaining full weeks through Week 17, current week excluded,
 skill positions only. `season_scoring.py` supports standard half-PPR, Camden and
-Dad presets, and supported live Sleeper scoring. Unknown nonzero rules fail
+Dad presets, and supported live Sleeper scoring. Projections are a two-source
+consensus: Sleeper's feed (RotoWire alone) averaged per player-week with ESPN's free
+weekly projections (`season_espn.py`, matched by normalized name + position). ESPN
+failure falls back to RotoWire with a visible health issue. Unknown nonzero rules fail
 explicitly; configured stats missing from the feed are disclosed. Bucket/bonus
 payouts are expectations over documented, unbacktested distributions. No extra
 injury multiplier. Custom Flex lists use starter replacement including flex demand;
@@ -277,5 +287,6 @@ placeholder ADP rows are not projections.
 Tiers are 1-D k-means over each list's startable depth (`TIER_SHAPE`). Schedule
 strength is context only, never a rank input, because Sleeper's projections already
 price matchups. Movement compares against a local rank snapshot at least five days
-old (`app/.cache/season-history.json`) and stays blank until one exists. Red (#980F26), with translucent fills and markers, is the subtle
-project accent, with a white/charcoal canvas.
+old (`app/.cache/season-history.json`) and stays blank until one exists. The
+palette is NFL-themed (Camden, 6 Oct 2026): league navy #013369 as the accent,
+NFL red #D50A0A for markers and urgency, on a white/charcoal canvas.

@@ -17,6 +17,7 @@ RANKED = POSITIONS | SPECIAL
 FLEX = {'RB', 'WR', 'TE'}
 POOLS = ('FLEX', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF')
 SCHEDULE_LABELS = ('Hard', 'Tough', 'Neutral', 'Good', 'Easy')
+NEAR_WEEKS = 3
 MOVE_MIN_DAYS = 5      # compare against a snapshot at least this old
 HISTORY_DAYS = 60
 
@@ -60,9 +61,13 @@ def aggregate(weekly, season, start, end=17, settings=None, dad=False):
                 for key,value in stats.items():
                     if isinstance(value,(int,float)) and not math.isfinite(value):
                         raise ValueError('Non-finite projected statistics')
-                player['points'] += weekly_score(stats, pl['position'], settings, dad)
+                points = weekly_score(stats, pl['position'], settings, dad)
             else:
-                player['points'] += stats['pts_half_ppr']
+                points = stats['pts_half_ppr']
+            player['points'] += points
+            # The next three weeks, for short-term (streaming, bye, injury-cover) pickups.
+            if week < start + NEAR_WEEKS:
+                player.setdefault('near', {})[str(week)] = round(points, 1)
             player['games'] += 1
             player['projected_weeks'].append(week)
             if row.get('opponent'):
@@ -300,7 +305,7 @@ def build(fetch, history=None, profile="standard", username=None, league_id=None
     if history:
         history.apply(result)
     # RefreshStore persists only complete successful results.
-    return {'engine_version': 5, 'reports': [result]}
+    return {'engine_version': 6, 'reports': [result]}
 
 
 def replacement(players, slots, teams):

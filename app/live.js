@@ -100,9 +100,12 @@ function renderScores(main) {
   main.append(nflStrip());
   if (!state.reports.length && !state.manual.length)
     main.append(node("p", "meta", "Connect a league in Leagues to see your matchups here."));
-  for (const report of state.reports) {
-    const entry = live.leagues[report.league.id];
-    if (!entry || entry.week !== week) { loadLeagueScores(report, week).then(() => state.view === "scores" && render()); }
+  for (const report of allReports()) {
+    const espn = report.platform === "espn";
+    // ESPN reports carry their own live scoreboard; Sleeper leagues read matchups directly.
+    const entry = espn ? {teams: Object.fromEntries(report.scoreboard.games.flat().map(t => [t.team_id, {name: t.name, record: t.record}])),
+      games: report.scoreboard.games.map(pair => pair.map(t => ({roster_id: t.team_id, points: t.points}))), week} : live.leagues[report.league.id];
+    if (!espn && (!entry || entry.week !== week)) { loadLeagueScores(report, week).then(() => state.view === "scores" && render()); }
     const section = add(node("section", "league-scores"), node("h2", "", report.league.name));
     if (!entry?.games) section.append(node("p", "meta", entry?.error || "Loading scores…"));
     else {
@@ -112,7 +115,7 @@ function renderScores(main) {
     }
     main.append(section);
   }
-  for (const league of state.manual.filter(l => l.platform !== "Sleeper Pick’em")) {
+  for (const league of state.manual.filter(l => l.platform !== "Sleeper Pick’em" && !liveManual(l))) {
     const section = add(node("section", "league-scores"), node("h2", "", league.name),
       node("p", "meta", league.platform + " is a saved roster snapshot, so live scores aren’t available here yet."));
     if (league.url) { const a = node("a", "text-link", "Open in " + league.platform + " ↗"); a.href = league.url; a.target = "_blank"; a.rel = "noopener noreferrer"; section.append(a); }
@@ -223,7 +226,7 @@ async function poll() {
   live.lastPoll = Date.now();
   await loadPickem();
   const week = activeWeek() || live.pickem?.week;
-  if (state.view === "scores" || state.view === "home") await Promise.all(state.reports.map(r => loadLeagueScores(r, week)));
+  if (state.view === "scores" || state.view === "home") await Promise.all([...state.reports.map(r => loadLeagueScores(r, week)), refreshEspn()]);
   if (["scores", "pickem", "home"].includes(state.view)) render();
   clearTimeout(live.timer);
   // Fast while any NFL game is on; slow otherwise.

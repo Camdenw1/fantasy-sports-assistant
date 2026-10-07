@@ -184,3 +184,5 @@ button.pick.chosen.cover{border-color:var(--good);background:var(--good-bg);box-
 button.pick.chosen.miss{border-color:var(--bad);background:var(--bad-bg);box-shadow:inset 3px 0 var(--bad)}
 .value-tag{position:absolute;top:-8px;right:10px;font-size:10px;font-weight:700;text-transform:uppercase;background:var(--good);color:#fff;border-radius:999px;padding:1px 7px}
 @media(max-width:760px){.score.big{font-size:36px}.matchup-hero{padding:14px}.pickem-game{grid-template-columns:1fr;gap:8px}.tally-facts{gap:2px 16px}.nfl-games{grid-auto-columns:132px}}
+
+.pickup-kind{font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 4px}.swap-reason.bid{color:var(--ink);font-weight:500}.swap-row.short .slot-chip{color:var(--nfl-red)}

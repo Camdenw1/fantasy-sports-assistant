@@ -153,3 +153,22 @@ class LeagueSeasonTests(unittest.TestCase):
             self.assertNotIn('movement_since',second)
 
 if __name__ == '__main__': unittest.main()
+
+
+class ShortTermTests(unittest.TestCase):
+    def test_bye_cover_pickup_is_short_term_rental(self):
+        from season_rosters import short_term
+        rb = lambda pid, ros, near: {'id': pid, 'position': 'RB', 'points': ros, 'near': near}
+        starter = rb('s', 200, {'6': 15, '7': 0, '8': 15})       # on bye in week 7
+        bench = rb('b', 40, {'6': 2, '7': 2, '8': 2})
+        stream = rb('x', 60, {'6': 9, '7': 11, '8': 6})
+        moves = short_term([starter, bench], [stream], {'s'}, ['RB'], 6)
+        self.assertEqual(len(moves), 1)
+        self.assertEqual((moves[0]['pickup'], moves[0]['drop'], moves[0]['kind']), ('x', 'b', 'short'))
+        self.assertEqual(moves[0]['weeks'], [6, 7, 8][1:2])     # only the bye week clears the bar
+        self.assertEqual(moves[0]['week_gain'], 9.0)
+
+    def test_no_rental_when_nothing_would_start(self):
+        from season_rosters import short_term
+        rb = lambda pid, near: {'id': pid, 'position': 'RB', 'points': 100, 'near': near}
+        self.assertEqual(short_term([rb('s', {'6': 15}), rb('b', {'6': 1})], [rb('x', {'6': 10})], {'s'}, ['RB'], 6, weeks=1), [])

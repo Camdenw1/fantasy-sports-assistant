@@ -52,12 +52,35 @@ function dateTime(iso) {
 function inactive(player) {
   return player && ["Out", "IR", "PUP", "Sus", "NA", "DNR", "COV"].includes(player.injury);
 }
+/* Live ESPN leagues produce the same report shape as Sleeper's engine. */
+state.espn = {};
+function espnLeagues() { return state.manual.filter(l => l.platform === "ESPN" && /[?&]teamId=\d+/.test(l.url || "")); }
+function espnReports() { return espnLeagues().map(l => state.espn[l.id]?.report).filter(Boolean); }
+function allReports() { return state.sample ? state.reports : [...state.reports, ...espnReports()]; }
+function liveManual(league) { return Boolean(state.espn[league.id]?.report); }
+async function loadEspn(league) {
+  const entry = state.espn[league.id] || {};
+  if (entry.loading) return;
+  entry.loading = true; state.espn[league.id] = entry;
+  try {
+    const params = new URLSearchParams({url: league.url});
+    const report = await getJson("/api/espn-live?" + params);
+    state.espn[league.id] = {report, at: Date.now()};
+  } catch (error) { state.espn[league.id] = {...entry, loading: false, error: error.message, at: Date.now()}; }
+  if (["home", "scores", "lineup"].includes(state.view)) { populateLeagues(); render(); }
+}
+function refreshEspn() { return Promise.all(espnLeagues().map(loadEspn)); }
 function reportGaps(report) { return report.sources.projection_gaps || []; }
 function activeWeek() { return state.sample ? state.reports[0]?.league.week :
   state.week || state.currentWeek || state.reports[0]?.league.week; }
 function quality(report) {
   const issues = [];
   if (state.sample) issues.push("Historical example");
+  if (report.platform === "espn") {
+    if (Date.now() - Date.parse(report.fetched_at) > 30 * 60000) issues.push("ESPN data over 30 minutes old");
+    if (reportGaps(report).length) issues.push("Missing projections: " + reportGaps(report).map(p => p.name).join(", "));
+    return issues;
+  }
   if (state.engineVersion !== 3) issues.push("Recommendation model needs refresh");
   if (activeWeek() && report.league.week !== activeWeek()) issues.push("Roster is from a different week; refresh needed");
   if (reportGaps(report).length) issues.push("Missing projections: " + reportGaps(report).map(p => p.name).join(", "));
@@ -74,7 +97,7 @@ function quality(report) {
 }
 function actionLink(report) {
   if (state.sample) return node("span", "meta", "Historical example · no action");
-  const link = node("a", "action", "Open in Sleeper ↗");
+  const link = node("a", "action", "Open in " + (report.platform === "espn" ? "ESPN" : "Sleeper") + " ↗");
   link.href = report.apply.url;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
@@ -208,7 +231,7 @@ function lineupVerdict(report) {
   const projectedTotal = number(report.totals.current) + " projected";
   if (activeWeek() && report.league.week !== activeWeek())
     return {kind:"paused", title:"Showing week " + report.league.week + " — refresh for week " + activeWeek(), detail:"Suggestions return once this week’s roster loads."};
-  if (state.engineVersion !== 3) return {kind:"paused", title:"Refresh to load suggestions", detail:"The saved report is from an older version."};
+  if (report.platform !== "espn" && state.engineVersion !== 3) return {kind:"paused", title:"Refresh to load suggestions", detail:"The saved report is from an older version."};
   if (report.slots.every(row => row.locked)) return {kind:"done", title:"Week " + report.league.week + " is locked", detail:number(report.totals.current) + " points"};
   if (reportGaps(report).length) return {kind:"paused", title:"Suggestions paused",
     detail:"No projection yet for " + reportGaps(report).map(p => p.name).join(", ") + ". Check Sleeper before kickoff."};
@@ -218,7 +241,7 @@ function lineupVerdict(report) {
     const first = forced[0].current;
     return {kind:"urgent", title: forced.length > 1 ? forced.length + " starters can’t play" :
       (first ? first.name + " is " + (first.game_state === "bye" ? "on bye" : first.injury) : forced[0].slot + " is empty") + " — swap needed",
-      detail: report.swaps.length ? "Make the changes below in Sleeper." : "No healthy replacement on your bench. Check the pickups below."};
+      detail: report.swaps.length ? "Make the changes below in " + (report.platform === "espn" ? "ESPN" : "Sleeper") + "." : "No healthy replacement on your bench. Check the pickups below."};
   }
   if (report.swaps.length && gain >= 0.5) return {kind:"upgrade",
     title: report.swaps.length + (report.swaps.length === 1 ? " change adds +" : " changes add +") + number(gain) + " pts",
@@ -304,36 +327,81 @@ async function loadPickups(report) {
   } catch (error) { state.pickups[id] = {at: Date.now(), error: error.message}; }
   if (state.view === "home") render();
 }
+function faabBid(info, move) {
+  if (!info || info.faab == null || !info.budget) return null;
+  const budget = info.budget, left = info.faab;
+  // Share of the full budget by how much the player helps; a rental is a minimum bid.
+  const gain = move.starter_gain || 0;
+  const share = move.kind === "short" ? 0.01 : gain >= 40 ? 0.2 : gain >= 20 ? 0.12 : gain >= 10 ? 0.06 : 0.03;
+  const bids = info.bids || [];
+  let factor = 1, median = null;
+  if (bids.length >= 5) {
+    median = bids[Math.floor(bids.length / 2)];
+    factor = Math.min(2, Math.max(0.5, median / (0.05 * budget)));
+  }
+  const floor = info.bidMin || 0;
+  const bid = Math.max(floor, Math.min(left, Math.round(budget * 0.35), Math.round(budget * share * factor)));
+  return {bid, low: Math.max(floor, Math.round(bid * 0.75)), high: Math.min(left, Math.max(bid, Math.round(bid * 1.3))), median, count: bids.length, left};
+}
+function bidNote(report, move) {
+  const info = state.standings[report.league.id];
+  const bid = faabBid(info, move);
+  if (bid) return "Bid $" + bid.bid + (bid.high > bid.low ? " (range $" + bid.low + "–" + bid.high + ")" : "") +
+    " of $" + bid.left + " left" + (bid.median != null ? " · league’s median winning bid $" + bid.median + " (" + bid.count + " claims)" : " · no league bid history yet");
+  if (info?.waiverPosition) return "Waiver priority " + ordinal(info.waiverPosition) + (move.kind === "short" ? " — worth a claim only if nobody better is out there" : "");
+  return null;
+}
+function pickupRow(report, move, players, entry) {
+  const add_ = players[move.pickup], drop = players[move.drop];
+  const short = move.kind === "short";
+  const detail = p => p && [p.position + (p.ranks?.[p.position] || ""), p.team, short && p.near ? "Wk " + move.week + ": " + number(p.near[move.week]) : null].filter(Boolean).join(" · ");
+  const row = node("li", "swap-row" + (short ? " short" : ""));
+  add(row, node("span", "slot-chip", short ? "WK " + move.weeks.join(",") : add_?.position || ""),
+    add(node("div", "swap-side in"), node("span", "swap-verb", "Add"), miniPlayer(add_ && {...add_, pos: add_.position}, detail(add_)), node("span", "swap-proj", short ? number(add_?.near?.[move.week]) : number(add_?.points))),
+    add(node("div", "swap-side out"), node("span", "swap-verb", "Drop"), miniPlayer(drop && {...drop, pos: drop.position}, detail(drop)), node("span", "swap-proj", short ? number(drop?.near?.[move.week]) : number(drop?.points))),
+    node("span", "swap-gain", "+" + number(short ? move.week_gain : move.projection_edge)));
+  row.append(node("p", "swap-reason", short ? move.reason + " · +" + number(move.week_gain) + " starting points in week " + move.week :
+    move.reason + " · rest-of-season points, weeks " + entry.weeks[0] + "–" + entry.weeks[1]));
+  const bid = bidNote(report, move);
+  if (bid) row.append(node("p", "swap-reason bid", bid));
+  return row;
+}
 function pickupBlock(report) {
   const section = add(node("section", "home-block"), node("h3", "", "Waiver pickups"));
   if (state.sample) { section.append(node("p", "meta", "Pickups appear for live leagues, using your league’s real rosters.")); return section; }
+  if (report.platform === "espn") {
+    section.append(node("p", "meta", "Waiver suggestions for ESPN leagues aren’t built yet. Your lineup check above is live."));
+    const link = node("a", "text-link", "Open ESPN free agents ↗"); link.href = report.apply.url.replace("/team?", "/players/add?"); link.target = "_blank"; link.rel = "noopener noreferrer";
+    section.append(link); return section;
+  }
   const entry = state.pickups[report.league.id];
   loadPickups(report);
   if (!entry || entry.loading) { section.append(node("p", "meta", "Checking available players in your league…")); return section; }
   if (entry.error) { section.append(node("p", "meta", "Couldn’t check waivers right now. " + entry.error)); return section; }
   const {roster, players} = entry;
   if (roster.issues.length) section.append(node("p", "meta", "Pickup suggestions paused: " + roster.issues.join("; ") + "."));
-  else if (!roster.suggestions.length) section.append(node("p", "meta", "No available player clearly beats your bench right now."));
   else {
-    const list = node("ol", "swap-list");
-    for (const move of roster.suggestions) {
-      const add_ = players[move.pickup], drop = players[move.drop];
-      const row = node("li", "swap-row");
-      add(row, node("span", "slot-chip", add_?.position || ""),
-        add(node("div", "swap-side in"), node("span", "swap-verb", "Add"), miniPlayer(add_ && {...add_, pos: add_.position}, add_ && [add_.position + (add_.ranks?.[add_.position] || ""), add_.team].filter(Boolean).join(" · ")), node("span", "swap-proj", number(add_?.points))),
-        add(node("div", "swap-side out"), node("span", "swap-verb", "Drop"), miniPlayer(drop && {...drop, pos: drop.position}, drop && [drop.position + (drop.ranks?.[drop.position] || ""), drop.team].filter(Boolean).join(" · ")), node("span", "swap-proj", number(drop?.points))),
-        node("span", "swap-gain", "+" + number(move.projection_edge)));
-      row.append(node("p", "swap-reason", move.reason + " · rest-of-season points, weeks " + entry.weeks[0] + "–" + entry.weeks[1]));
-      list.append(row);
+    if (roster.suggestions.length) {
+      section.append(node("h4", "pickup-kind", "Rest of season"));
+      const list = node("ol", "swap-list");
+      roster.suggestions.forEach(move => list.append(pickupRow(report, {...move, kind: "season"}, players, entry)));
+      section.append(list);
     }
-    section.append(list);
+    if (roster.short_term?.length) {
+      section.append(node("h4", "pickup-kind", "Short-term · byes, injuries, streamers"));
+      const list = node("ol", "swap-list");
+      roster.short_term.forEach(move => list.append(pickupRow(report, move, players, entry)));
+      section.append(list);
+    }
+    if (!roster.suggestions.length && !roster.short_term?.length)
+      section.append(node("p", "meta", "No available player clearly beats your bench, now or in the next three weeks."));
   }
   const more = node("a", "text-link", "See all available players →"); more.href = "/players.html";
   section.append(more);
   return section;
 }
 function dataChecks(main) {
-  const issues = state.reports.flatMap(report => quality(report).map(issue => (state.reports.length > 1 ? report.league.name + ": " : "") + issue));
+  const issues = allReports().flatMap(report => quality(report).map(issue => (allReports().length > 1 ? report.league.name + ": " : "") + issue));
   const stale = state.manual.filter(league => Date.now() - Date.parse(league.savedAt) > 24 * 3600000);
   if (stale.length) issues.push(stale.map(league => league.name).join(", ") + ": manual snapshot over 24 hours old");
   if (!issues.length) return;
@@ -359,14 +427,23 @@ async function loadStandings(report) {
     const standing = [...rosters].sort((a, b) => (b.settings?.wins || 0) - (a.settings?.wins || 0) || points(b) - points(a));
     const byPoints = [...rosters].sort((a, b) => points(b) - points(a));
     const faab = league.settings?.waiver_type === 2 ? (league.settings.waiver_budget || 0) - (mine.settings?.waiver_budget_used || 0) : null;
+    // Winning FAAB bids this season calibrate bid suggestions to how this league spends.
+    let bids = [];
+    if (faab != null) {
+      const weeks = Array.from({length: Math.max(0, (activeWeek() || 1))}, (_, i) => i + 1);
+      const rounds = await Promise.all(weeks.map(w => getJson("https://api.sleeper.app/v1/league/" + id + "/transactions/" + w).catch(() => [])));
+      bids = rounds.flat().filter(t => t.type === "waiver" && t.status === "complete" && Number.isFinite(t.settings?.waiver_bid))
+        .map(t => t.settings.waiver_bid).sort((a, b) => a - b);
+    }
     state.standings[id] = {at: Date.now(), wins: mine.settings?.wins || 0, losses: mine.settings?.losses || 0, ties: mine.settings?.ties || 0,
       place: standing.indexOf(mine) + 1, pfRank: byPoints.indexOf(mine) + 1, pf: points(mine), teams: rosters.length,
-      faab, budget: league.settings?.waiver_budget, waiverPosition: mine.settings?.waiver_position,
+      faab, budget: league.settings?.waiver_budget, waiverPosition: mine.settings?.waiver_position, bids,
+      bidMin: league.settings?.waiver_bid_min ?? 0,
       playoffTeams: league.settings?.playoff_teams};
   } catch { state.standings[id] = {at: Date.now(), error: true}; }
   if (state.view === "home") render();
 }
-function leagueKeys() { return [...state.reports.map(r => "s:" + r.league.id), ...state.manual.filter(l => l.platform !== "Sleeper Pick’em").map(l => "m:" + l.id)]; }
+function leagueKeys() { return [...allReports().map(r => "s:" + r.league.id), ...state.manual.filter(l => l.platform !== "Sleeper Pick’em" && !liveManual(l)).map(l => "m:" + l.id)]; }
 function homeKey() {
   const keys = leagueKeys();
   return keys.includes(state.selected) ? state.selected : keys[0];
@@ -385,14 +462,15 @@ function teamCards() {
   const keys = leagueKeys(), current = homeKey();
   const row = node("section", "team-cards" + (keys.length === 1 ? " single" : ""));
   row.setAttribute("aria-label", "Your teams");
-  for (const report of state.reports) {
-    const key = "s:" + report.league.id, info = state.standings[report.league.id];
-    loadStandings(report);
+  for (const report of allReports()) {
+    const espn = report.platform === "espn";
+    const key = "s:" + report.league.id, info = espn ? report.standing : state.standings[report.league.id];
+    if (!espn) loadStandings(report);
     const card = node("button", "team-card" + (key === current ? " selected" : ""));
     card.type = "button"; card.setAttribute("aria-pressed", String(key === current));
     const verdict = lineupVerdict(report);
     const status = {urgent: "Swap needed", upgrade: "Upgrade available", good: "Lineup set", done: "Locked", paused: "Check lineup"}[verdict.kind];
-    add(card, node("span", "team-league", report.league.name + " · Sleeper"), node("strong", "team-name", report.team.name || "My team"));
+    add(card, node("span", "team-league", report.league.name + (espn ? " · ESPN" : " · Sleeper")), node("strong", "team-name", report.team.name || "My team"));
     if (info && !info.error && !info.loading) {
       const record = info.wins + "–" + info.losses + (info.ties ? "–" + info.ties : "");
       add(card, add(node("span", "team-record"), node("span", "record", record), node("span", "place", ordinal(info.place) + " of " + info.teams)));
@@ -403,7 +481,7 @@ function teamCards() {
       else if (info.waiverPosition) stat("Waiver priority", ordinal(info.waiverPosition));
       card.append(stats);
     } else card.append(node("span", "team-record muted", info?.error ? "Standings unavailable" : state.sample ? "Example team" : "Loading standings…"));
-    const scores = window.live?.leagues?.[report.league.id];
+    const scores = espn ? {games: report.scoreboard.games.map(pair => pair.map(t => ({roster_id: t.team_id, points: t.points})))} : window.live?.leagues?.[report.league.id];
     const pair = scores?.games?.find(p => p.some(m => m.roster_id === report.team.roster_id));
     if (pair && window.live.pickem?.games?.some(g => g.state !== "pre")) {
       const me = pair.find(m => m.roster_id === report.team.roster_id), them = pair.find(m => m !== me);
@@ -416,6 +494,7 @@ function teamCards() {
     row.append(card);
   }
   for (const league of state.manual) {
+    if (liveManual(league)) continue;
     if (league.platform === "Sleeper Pick’em") {
       const games = window.live?.pickem?.games || [];
       const values = games.filter(g => g.value?.side && g.state === "pre").length;
@@ -443,7 +522,7 @@ function renderHome(main) {
   if (state.sample) main.append(node("div", "notice", "Saved week-3 example. Nothing here is current."));
   main.append(teamCards());
   const key = homeKey();
-  const report = state.reports.find(r => "s:" + r.league.id === key);
+  const report = allReports().find(r => "s:" + r.league.id === key);
   const league = state.manual.find(l => "m:" + l.id === key);
   const section = node("section", "league-home");
   if (report) {
@@ -594,8 +673,8 @@ function render() {
   const titles = {home: ["Overview", ""], scores: ["Scores", ""], pickem: ["Pick’em", ""],
     leagues: ["Leagues", "Connect a platform, update a roster, or pick a lineup to review."],
     lineup: ["Lineup", ""]};
-  const onlyLeague = state.reports.length + state.manual.length === 1;
-  const focusKey = homeKey(), focus = state.reports.find(r => "s:" + r.league.id === focusKey)?.league.name || state.manual.find(l => "m:" + l.id === focusKey)?.name;
+  const onlyLeague = leagueKeys().length === 1;
+  const focusKey = homeKey(), focus = allReports().find(r => "s:" + r.league.id === focusKey)?.league.name || state.manual.find(l => "m:" + l.id === focusKey)?.name;
   titles.home[0] = focus || "This week";
   $("page-title").textContent = titles[state.view][0];
   $("lineup-tab").hidden = Boolean(onlyLeague);
@@ -622,7 +701,7 @@ function render() {
     main.append(empty);
   } else if (state.view === "home") renderHome(main);
   else {
-    const chosen = state.selected.startsWith("s:") ? state.reports.find(x => "s:" + x.league.id === state.selected) :
+    const chosen = state.selected.startsWith("s:") ? allReports().find(x => "s:" + x.league.id === state.selected) :
       state.manual.find(x => "m:" + x.id === state.selected);
     if (chosen?.schema) renderSleeperLineup(main, chosen);
     else if (chosen) renderManualLineup(main, chosen);
@@ -652,8 +731,8 @@ function setView(view) {
 }
 function populateLeagues() {
   const select = $("league"); select.replaceChildren();
-  for (const report of state.reports) {
-    const option = node("option", "", "Sleeper · " + report.league.name);
+  for (const report of allReports()) {
+    const option = node("option", "", (report.platform === "espn" ? "ESPN · " : "Sleeper · ") + report.league.name);
     option.value = "s:" + report.league.id; select.append(option);
   }
   for (const league of state.manual) {
@@ -741,7 +820,7 @@ async function refresh(username = state.username, force = true) {
   } finally { busy(false); }
 }
 
-function saveManual() { localStorage.setItem(manualKey, JSON.stringify(state.manual)); }
+function saveManual() { localStorage.setItem(manualKey, JSON.stringify(state.manual)); refreshEspn(); }
 const parseStarters = RosterImport.parseRoster;
 function previewRoster() {
   const preview = $("import-preview"); preview.replaceChildren(); preview.hidden = false;
@@ -893,6 +972,7 @@ $("manual-week").value = activeWeek() || 1;
 for (let week = 1; week <= 18; week++) { const option = node("option", "", week); option.value = week; $("week").append(option); }
 state.sleeperIds = state.reports.map(report => report.league.id);
 populateLeagues(); setView(location.hash.slice(1) || "home"); if (state.username) refresh(state.username, false);
+refreshEspn();
 if(!state.currentWeek) getJson('/api/season-state').then(info=>{
   state.currentWeek=info.week;state.season=info.season;
   if(!state.editing && !$("manual-week").dataset.userSet)$("manual-week").value=info.week;

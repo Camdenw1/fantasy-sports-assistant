@@ -313,3 +313,22 @@ the UI says to trust Sleeper's number. Value = the side the market moved toward 
 the lock; Strong when the move touches 3 or 7, Solid at 1.5+ or 4/6/10/14, else Minor
 (the `pickem` skill's rules). Camden's own picks are tapped in and stored in this
 browser only; covering status uses the locked line.
+
+## ESPN live, waivers and installing
+
+`app/espn_live.py` turns one public ESPN league read into the same `startsit/v1`
+report Sleeper's engine produces (plus `standing` and `scoreboard`), using ESPN's own
+weekly projections and each player's `eligibleSlots`; started games stay locked.
+`/api/espn-live` serves it; ESPN leagues imported with a teamId go live automatically
+and their snapshot card is hidden. Still **public leagues only** — no ESPN cookies are
+accepted; private leagues stay snapshots until Camden decides otherwise. ESPN waiver
+suggestions are not built yet.
+
+Waivers: `season_rosters.short_term` adds up to three rentals for the next three weeks
+(a pickup that would start for you; the drop is your lowest unprotected bench player).
+FAAB bids are client-side: a share of budget by starter gain (rentals ~1%), scaled by the
+league's median winning bid from Sleeper's `/transactions/{week}` when there are 5+
+claims, capped at remaining FAAB and 35% of budget. A rule of thumb, not validated.
+
+The app is installable (manifest + icons in `app/assets/`): Safari → File → Add to
+Dock, or Chrome → Install. It still runs only on Camden's Mac (localhost).

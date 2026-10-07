@@ -19,6 +19,7 @@ from season_rosters import discover as player_leagues
 from season_sources import SourceCache
 import season_espn
 import pickem
+import espn_live
 import threading
 import time
 
@@ -28,8 +29,8 @@ ENGINE = ROOT / "prototypes" / "start-sit" / "startsit.py"
 SAMPLE = ROOT / "prototypes" / "start-sit" / "sample-output-week3-whatif.json"
 PLAYER_CACHE = ROOT / "prototypes" / "start-sit" / ".cache" / "players_nfl.json"
 REFRESH = RefreshStore(HERE / ".cache" / "reports", version=3)
-SEASON = RefreshStore(HERE / ".cache" / "season", ttl=3600, version=5)
-LEAGUE_SEASON = RefreshStore(HERE / ".cache" / "league-season", ttl=300, version=5)
+SEASON = RefreshStore(HERE / ".cache" / "season", ttl=3600, version=6)
+LEAGUE_SEASON = RefreshStore(HERE / ".cache" / "league-season", ttl=300, version=6)
 SEASON_HISTORY = History(HERE / ".cache" / "season-history.json")
 PLAYER_LEAGUES = RefreshStore(HERE / ".cache" / "player-leagues", ttl=300, version=1)
 UA = {"User-Agent": "fantasy-sports-assistant/local-dashboard"}
@@ -50,6 +51,16 @@ PICKEM_LOCKS = pickem.LockStore(HERE / ".cache" / "pickem-locks.json")
 def nfl_week():
     state = fetch_json("https://api.sleeper.app/v1/state/nfl")
     return int(state["season"]), int(state.get("week") or state["display_week"])
+
+
+def nfl_games():
+    """Team abbreviation -> this week's game state, kickoff and opponent."""
+    season, week = nfl_week()
+    games = {}
+    for g in pickem.games(fetch_json(pickem.SCOREBOARD.format(season=season, week=week))):
+        for side, other in (("home", "away"), ("away", "home")):
+            games[g[side]["abbr"]] = {"state": g["state"], "kickoff": g["kickoff"], "opp": g[other]["abbr"]}
+    return games
 
 
 def capture_pickem_locks():
@@ -198,6 +209,20 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError as exc:
                 self.reply(400, {"error": str(exc)})
             return
+        if parsed.path == "/api/espn-live":
+            try:
+                query = parse_qs(parsed.query)
+                try: games = nfl_games()
+                except Exception: games = {}
+                self.reply(200, espn_live.live(query.get("url", [""])[0], query.get("team_id", [None])[0], fetch_json, games))
+            except ValueError as exc:
+                self.reply(400, {"error": str(exc)})
+            except urllib.error.HTTPError as exc:
+                self.reply(502, {"error": "This ESPN league is private, so live data needs ESPN sign-in cookies. It stays a roster snapshot for now."
+                                if exc.code in (401, 403) else "ESPN is unavailable. Try again later."})
+            except Exception:
+                self.reply(502, {"error": "ESPN live data could not be read right now."})
+            return
         if parsed.path == "/api/espn":
             try:
                 query = parse_qs(parsed.query)
@@ -230,13 +255,13 @@ class Handler(BaseHTTPRequestHandler):
             path = ROOT / parsed.path.lstrip("/")
         else:
             path = (HERE / ("index.html" if parsed.path == "/" else parsed.path.lstrip("/"))).resolve()
-        is_logo = path.parent == HERE / "assets" / "teams" and path.suffix == ".png"
+        is_logo = path.parent in {HERE / "assets" / "teams", HERE / "assets"} and path.suffix == ".png"
         if (not path.is_file() or (not is_logo and
-                (path.parent not in {HERE, ROOT} or path.suffix not in {".html", ".css", ".js"}))):
+                (path.parent not in {HERE, ROOT} or path.suffix not in {".html", ".css", ".js", ".webmanifest"}))):
             self.send_error(404)
             return
-        content_type = {".html": "text/html", ".css": "text/css",
-                        ".js": "text/javascript", ".png": "image/png"}[path.suffix]
+        content_type = {".html": "text/html", ".css": "text/css", ".js": "text/javascript",
+                        ".png": "image/png", ".webmanifest": "application/manifest+json"}[path.suffix]
         body = path.read_bytes()
         self.send_response(200)
         self.send_header("Content-Type", content_type if is_logo else content_type + "; charset=utf-8")

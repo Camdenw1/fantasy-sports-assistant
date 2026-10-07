@@ -366,7 +366,7 @@ async function loadStandings(report) {
   } catch { state.standings[id] = {at: Date.now(), error: true}; }
   if (state.view === "home") render();
 }
-function leagueKeys() { return [...state.reports.map(r => "s:" + r.league.id), ...state.manual.map(l => "m:" + l.id)]; }
+function leagueKeys() { return [...state.reports.map(r => "s:" + r.league.id), ...state.manual.filter(l => l.platform !== "Sleeper Pick’em").map(l => "m:" + l.id)]; }
 function homeKey() {
   const keys = leagueKeys();
   return keys.includes(state.selected) ? state.selected : keys[0];
@@ -403,11 +403,31 @@ function teamCards() {
       else if (info.waiverPosition) stat("Waiver priority", ordinal(info.waiverPosition));
       card.append(stats);
     } else card.append(node("span", "team-record muted", info?.error ? "Standings unavailable" : state.sample ? "Example team" : "Loading standings…"));
+    const scores = window.live?.leagues?.[report.league.id];
+    const pair = scores?.games?.find(p => p.some(m => m.roster_id === report.team.roster_id));
+    if (pair && window.live.pickem?.games?.some(g => g.state !== "pre")) {
+      const me = pair.find(m => m.roster_id === report.team.roster_id), them = pair.find(m => m !== me);
+      const pts = m => m ? (m.custom_points ?? m.points ?? 0) : 0;
+      card.append(node("span", "team-live" + (pts(me) >= pts(them) ? " ahead" : ""), number(pts(me)) + " – " + number(pts(them)) +
+        (window.live.pickem.games.some(g => g.state === "in") ? " · Live" : "")));
+    }
     card.append(node("span", "team-status " + verdict.kind, status));
     card.addEventListener("click", () => chooseTeam(key));
     row.append(card);
   }
   for (const league of state.manual) {
+    if (league.platform === "Sleeper Pick’em") {
+      const games = window.live?.pickem?.games || [];
+      const values = games.filter(g => g.value?.side && g.state === "pre").length;
+      const card = node("button", "team-card");
+      card.type = "button";
+      add(card, node("span", "team-league", league.name + " · Sleeper Pick’em"), node("strong", "team-name", "Pick’em · Week " + (window.live?.pickem?.week || "")),
+        node("span", "team-record muted", games.length ? games.filter(g => g.state === "pre").length + " games still open" : "Loading games…"),
+        node("span", "team-status " + (values ? "upgrade" : "good"), values ? values + " value pick" + (values === 1 ? "" : "s") : "No line moves yet"));
+      card.addEventListener("click", () => setView("pickem"));
+      row.append(card);
+      continue;
+    }
     const key = "m:" + league.id, problems = manualItems(league).length;
     const card = node("button", "team-card" + (key === current ? " selected" : ""));
     card.type = "button"; card.setAttribute("aria-pressed", String(key === current));
@@ -571,7 +591,7 @@ function render() {
   const main = $("content"); main.replaceChildren();
   $("connections-view").hidden = state.view !== "leagues";
   $("lineup-selector").hidden = state.view !== "lineup";
-  const titles = {home: ["Overview", ""],
+  const titles = {home: ["Overview", ""], scores: ["Scores", ""], pickem: ["Pick’em", ""],
     leagues: ["Leagues", "Connect a platform, update a roster, or pick a lineup to review."],
     lineup: ["Lineup", ""]};
   const onlyLeague = state.reports.length + state.manual.length === 1;
@@ -588,6 +608,9 @@ function render() {
   document.querySelector('.context-bar').hidden=state.view==='leagues';
   if (state.view === "leagues") {
     if (hasData) $("connected-leagues").append(node('h2','section-head','Connected leagues'),leagueStrip());
+  } else if (state.view === "scores" || state.view === "pickem") {
+    const view = state.view === "scores" ? window.renderScores : window.renderPickem;
+    if (view) view(main); else main.append(node("p", "meta", "Loading…"));
   } else if (!hasData) {
     const empty = add(node("section", "empty"), node("h2", "", state.loading ? "Loading your leagues…" : "Bring your leagues together"),
       node("p", "", state.loading ? "Reading rosters, injuries, and projections. This can take a moment." :
@@ -615,16 +638,16 @@ function render() {
   }
 }
 function setView(view) {
-  if (!["home", "lineup", "leagues"].includes(view)) view = "home";
+  if (!["home", "scores", "pickem", "lineup", "leagues"].includes(view)) view = "home";
   const changedView = state.view !== view;
   state.view = view;
   if (changedView) window.scrollTo({top:0, behavior:"instant"});
-  for (const kind of ["home", "lineup", "leagues"]) {
+  for (const kind of ["home", "scores", "pickem", "lineup", "leagues"]) {
     $(kind + "-tab").classList.toggle("active", kind === view);
     $(kind + "-tab").setAttribute("aria-pressed", String(kind === view));
   }
   if (location.hash !== "#" + view) history.replaceState(null, "", "#" + view);
-  document.title = "Fantasy Sports · " + (view === "home" ? "Home" : view === "lineup" ? "Lineup" : "Leagues");
+  document.title = "Fantasy Sports · " + {home:"Home", scores:"Scores", pickem:"Pick’em", lineup:"Lineup", leagues:"Leagues"}[view];
   render();
 }
 function populateLeagues() {
@@ -852,6 +875,8 @@ $("sample").addEventListener("click", async () => {
   } catch (error) { status(error.message, true); }
 });
 $("home-tab").addEventListener("click", () => setView("home"));
+$("scores-tab").addEventListener("click", () => setView("scores"));
+$("pickem-tab").addEventListener("click", () => setView("pickem"));
 $("leagues-tab").addEventListener("click", () => setView("leagues"));
 $("lineup-tab").addEventListener("click", () => setView("lineup"));
 $("manage-leagues").addEventListener("click", () => setView("leagues"));

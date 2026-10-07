@@ -295,3 +295,21 @@ price matchups. Movement compares against a local rank snapshot at least five da
 old (`app/.cache/season-history.json`) and stays blank until one exists. The
 palette is NFL-themed (Camden, 6 Oct 2026): league navy #013369 as the accent,
 NFL red #D50A0A for markers and urgency, on a white/charcoal canvas.
+
+## Live scores and Pick'em
+
+`app/live.js` adds Scores and Pick'em views (read-only). Scores reads each connected
+Sleeper league's `/matchups/{week}`, users and rosters directly (CORS allowed) and
+ESPN's public NFL scoreboard via `/api/pickem`; it polls every 30s while any NFL game
+is live, otherwise every 5 min. ESPN/CBS snapshot leagues have no live scores yet.
+Score changes count up, pulse and float the gain; reduced-motion users get plain numbers.
+
+Sleeper Pick'em has **no public API**: picks are never read from or sent to Sleeper,
+and the app must not ask for a Sleeper login or token. `app/pickem.py` records ESPN's
+(DraftKings) spread per game once Sleeper's Tuesday 10:00 ET lock has passed
+(`.cache/pickem-locks.json`, written by a 30-min background thread in server.py,
+never overwritten); a capture more than 6h after the lock is flagged approximate and
+the UI says to trust Sleeper's number. Value = the side the market moved toward since
+the lock; Strong when the move touches 3 or 7, Solid at 1.5+ or 4/6/10/14, else Minor
+(the `pickem` skill's rules). Camden's own picks are tapped in and stored in this
+browser only; covering status uses the locked line.

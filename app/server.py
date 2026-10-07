@@ -18,6 +18,9 @@ from season import History, build as season_rankings
 from season_rosters import discover as player_leagues
 from season_sources import SourceCache
 import season_espn
+import pickem
+import threading
+import time
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -41,6 +44,23 @@ def fetch_json(url):
 
 SEASON_SOURCES = SourceCache(HERE / ".cache" / "season-sources", fetch_json)
 ESPN_SOURCES = SourceCache(HERE / ".cache" / "season-sources", season_espn.fetch)
+PICKEM_LOCKS = pickem.LockStore(HERE / ".cache" / "pickem-locks.json")
+
+
+def nfl_week():
+    state = fetch_json("https://api.sleeper.app/v1/state/nfl")
+    return int(state["season"]), int(state.get("week") or state["display_week"])
+
+
+def capture_pickem_locks():
+    """Record Sleeper Pick'em lock lines on Tuesday even if nobody opens the app."""
+    while True:
+        try:
+            season, week = nfl_week()
+            pickem.build(fetch_json, PICKEM_LOCKS, season, week)
+        except Exception:
+            pass
+        time.sleep(1800)
 
 def discover(username):
     if not USERNAME.fullmatch(username):
@@ -128,6 +148,20 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(200, {'season': int(state['season']), 'week': int(state.get('week') or state['display_week'])})
             except Exception:
                 self.reply(502, {'error': 'Current week unavailable. Choose the snapshot week.'})
+            return
+        if parsed.path == "/api/pickem":
+            try:
+                query = parse_qs(parsed.query)
+                season, week = nfl_week()
+                requested = query.get("week", [None])[0]
+                if requested is not None:
+                    if not requested.isdigit() or not 1 <= int(requested) <= 18: raise ValueError("Invalid week")
+                    week = int(requested)
+                self.reply(200, pickem.build(fetch_json, PICKEM_LOCKS, season, week))
+            except ValueError as exc:
+                self.reply(400, {"error": str(exc)})
+            except Exception:
+                self.reply(502, {"error": "NFL scoreboard unavailable. Try again shortly."})
             return
         if parsed.path in {"/api/season", "/api/player-leagues"}:
             try:
@@ -243,6 +277,7 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    threading.Thread(target=capture_pickem_locks, daemon=True, name="pickem-locks").start()
     print("Fantasy Sports Assistant at http://127.0.0.1:" + str(port))
     print("Local only; press Ctrl-C to stop.")
     server.serve_forever()

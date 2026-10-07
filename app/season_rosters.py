@@ -34,13 +34,14 @@ def context(fetch, username, league_id, season):
     return {'league_id':league_id,'name':league['name'],'teams':len(rosters),
             'settings':settings,'slots':[s for s in slots if s in ELIGIBLE],
             'unsupported_slots':[s for s in slots if s not in ELIGIBLE and s not in {'BN','IR','K','DEF'}],
+            'special_slots':[s for s in slots if s in {'K','DEF'}],
             'owned':set(str(x) for x in mine['players']), 'occupied':set(ids),
             'starters':set(str(x) for x in mine.get('starters') or []),
             'reserve':set(str(x) for x in mine.get('reserve') or []),
             'fetched_at':dt.datetime.now(dt.timezone.utc).isoformat()}
 
 
-def best_lineup(players, slots):
+def best_lineup(players, slots, eligible=ELIGIBLE):
     """Maximum legal ROS starter total; each player and slot is used once."""
     if len(slots)>10: raise ValueError('Too many skill starter slots')
     best={0:(0.,[])}
@@ -48,7 +49,7 @@ def best_lineup(players, slots):
         for mask,(points,ids) in list(best.items()):
             for i,slot in enumerate(slots):
                 bit=1<<i
-                if mask&bit or p['position'] not in ELIGIBLE[slot]: continue
+                if mask&bit or p['position'] not in eligible[slot]: continue
                 key=mask|bit; score=points+p['points']
                 if score>best.get(key,(-1,[]))[0]: best[key]=(score,ids+[p['id']])
     return best.get((1<<len(slots))-1)
@@ -91,7 +92,7 @@ def apply(result, ctx):
                   'reason':'Potential starter upgrade' if gain>=10 else 'Stronger same-position bench projection'})
         suggestions.sort(key=lambda s:(-s['starter_gain'],-s['projection_edge']))
         for s in suggestions: s['kind']='season'
-        short=short_term(mine,available,protected,ctx['slots'],result.get('start_week'))
+        short=short_term(mine,available,protected,ctx['slots'],result.get('start_week'),special=ctx.get('special_slots',[]))
     result['roster']={'league_id':ctx['league_id'],'name':ctx['name'],'fetched_at':ctx['fetched_at'],
         'missing':unknown,'issues':issues,'suggestions':suggestions[:3],
         'short_term':short if not issues and baseline else [],
@@ -103,34 +104,52 @@ def week_view(players, week):
     return [dict(p, points=(p.get('near') or {}).get(str(week), 0.)) for p in players]
 
 
-def short_term(mine, available, protected, slots, start, weeks=3, min_gain=3.0):
-    """Pickups that start for you in the next few weeks: bye and injury cover, or a
-    strong short stretch. Each is a rental: the drop is your lowest-projected
-    unprotected bench player at any position, never a starter or reserve."""
+SPECIAL_ELIGIBLE = dict(ELIGIBLE, K={'K'}, DEF={'DEF'})
+
+
+def short_term(mine, available, protected, slots, start, weeks=3, min_gain=3.0, special=(), per_position=8):
+    """Pickups that start for you in the next few weeks: bye and injury cover, K/DEF
+    streams, or a strong short stretch. Each is a rental. Skill pickups drop your
+    lowest-projected unprotected bench player; a K/DEF stream drops your K/DEF at
+    that position with the fewest rest-of-season points (usually the one on bye)."""
+    slots = list(slots) + (list(special) if len(slots) + len(special) <= 10 else [])
     if not start or not slots:
         return []
-    bench = sorted((p for p in mine if p['id'] not in protected), key=lambda p: p['points'])
-    if not bench:
-        return []
-    drop = bench[0]
-    keep = [m for m in mine if m['id'] != drop['id']]
+    special_positions = {'K', 'DEF'} & set(slots)
+    bench = sorted((p for p in mine if p['id'] not in protected and p['position'] not in special_positions), key=lambda p: p['points'])
+    best_near = lambda p: max((p.get('near') or {}).values(), default=0)
+    # Candidates per position, so high-scoring quarterbacks don't crowd everyone else out.
+    pool = [p for pos in ['QB', 'RB', 'WR', 'TE', *sorted(special_positions)]
+            for p in sorted((a for a in available if a['position'] == pos), key=lambda a: -best_near(a))[:per_position]]
+    lineup = lambda players, week: best_lineup(week_view(players, week), slots, SPECIAL_ELIGIBLE)
     out = []
-    pool = sorted(available, key=lambda p: -max((p.get('near') or {}).values(), default=0))[:40]
     for week in range(start, start + weeks):
-        base = best_lineup(week_view(mine, week), slots)
+        base = lineup(mine, week)
         if not base:
             continue
         for p in pool:
-            if any(o['pickup'] == p['id'] for o in out):
+            # One suggestion per position per week: the best one.
+            if any(o['pickup'] == p['id'] or (o['week'] == week and o['position'] == p['position']) for o in out):
                 continue
-            better = best_lineup(week_view(keep + [p], week), slots)
+            if p['position'] in special_positions:
+                same = sorted((m for m in mine if m['position'] == p['position']), key=lambda m: m['points'])
+                # Keep a clearly better K/DEF for the rest of the season; drop from the bench instead.
+                drop = same[0] if same and same[0]['points'] <= p['points'] + 15 else (bench[0] if bench else None)
+            else:
+                drop = bench[0] if bench else None
+            if not drop:
+                continue
+            keep = [m for m in mine if m['id'] != drop['id']] + [p]
+            better = lineup(keep, week)
             gain = round(better[0] - base[0], 1) if better and p['id'] in better[1] else 0
-            if gain >= min_gain:
-                weeks_helped = [w for w in range(start, start + weeks)
-                                if (b := best_lineup(week_view(mine, w), slots)) and (n := best_lineup(week_view(keep + [p], w), slots))
-                                and p['id'] in n[1] and n[0] - b[0] >= min_gain]
-                out.append({'pickup': p['id'], 'drop': drop['id'], 'kind': 'short', 'week': week,
-                            'weeks': weeks_helped, 'week_gain': gain,
-                            'reason': ('Starts for you in week ' + ', '.join(map(str, weeks_helped))) if weeks_helped else 'Short-term starter'})
+            if gain < min_gain:
+                continue
+            helped = [w for w in range(start, start + weeks)
+                      if (b := lineup(mine, w)) and (n := lineup(keep, w)) and p['id'] in n[1] and n[0] - b[0] >= min_gain]
+            on_bye = p['position'] in special_positions and not any((m.get('near') or {}).get(str(week)) for m in mine if m['position'] == p['position'])
+            reason = ('Stream while your ' + p['position'] + ' is on bye' + ('' if drop['position'] == p['position'] else ', keep your starter') if on_bye
+                      else 'Starts for you in week ' + ', '.join(map(str, helped)) if helped else 'Short-term starter')
+            out.append({'pickup': p['id'], 'drop': drop['id'], 'kind': 'short', 'week': week, 'weeks': helped, 'position': p['position'],
+                        'week_gain': gain, 'reason': reason})
     out.sort(key=lambda o: (o['week'], -o['week_gain']))
-    return out[:3]
+    return out[:4]

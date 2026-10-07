@@ -324,11 +324,26 @@ and their snapshot card is hidden. Still **public leagues only** — no ESPN coo
 accepted; private leagues stay snapshots until Camden decides otherwise. ESPN waiver
 suggestions are not built yet.
 
-Waivers: `season_rosters.short_term` adds up to three rentals for the next three weeks
-(a pickup that would start for you; the drop is your lowest unprotected bench player).
+Waivers: `season_rosters.short_term` adds up to four rentals for the next three weeks
+(a pickup that would start for you), candidates taken per position so quarterbacks
+don't crowd out everyone else, one per position per week. K/DEF streams count (league
+K/DEF slots join the evaluation): the drop is your K/DEF on bye unless it projects 15+
+ROS points better, then your lowest unprotected bench player; skill rentals drop that
+bench player too.
 FAAB bids are client-side: a share of budget by starter gain (rentals ~1%), scaled by the
 league's median winning bid from Sleeper's `/transactions/{week}` when there are 5+
 claims, capped at remaining FAAB and 35% of budget. A rule of thumb, not validated.
 
 The app is installable (manifest + icons in `app/assets/`): Safari → File → Add to
 Dock, or Chrome → Install. It still runs only on Camden's Mac (localhost).
+
+## Game-day alerts and rooting guide
+
+`app/alerts.py` runs in the local service: every 10 min, only when an NFL game kicks
+off within 3 hours, it builds the lineup report for `sleeper_username` in the git-ignored
+`local-settings.json` and sends one macOS notification (osascript) per unlocked starter
+that is Out/IR/PUP/Sus/Doubtful, on bye, an empty slot, or Questionable within 90 min of
+kickoff. Sent keys live in `.cache/alerts-sent.json`. Opt out with
+`"game_day_alerts": false`. Scores has a rooting guide: per NFL game, your starters and
+your opponents' starters across all leagues (names via `/api/players`, from the engine's
+cached Sleeper player file).

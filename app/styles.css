@@ -186,3 +186,21 @@ button.pick.chosen.miss{border-color:var(--bad);background:var(--bad-bg);box-sha
 @media(max-width:760px){.score.big{font-size:36px}.matchup-hero{padding:14px}.pickem-game{grid-template-columns:1fr;gap:8px}.tally-facts{gap:2px 16px}.nfl-games{grid-auto-columns:132px}}
 
 .pickup-kind{font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 4px}.swap-reason.bid{color:var(--ink);font-weight:500}.swap-row.short .slot-chip{color:var(--nfl-red)}
+
+.rooting{margin-bottom:32px}.rooting h3{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px}
+.rooting-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.rooting-row{display:grid;grid-template-columns:190px 1fr 1fr;gap:16px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line)}
+.rooting-row.in{background:linear-gradient(90deg,rgb(213 10 10 / 5%),transparent 40%)}
+.rooting-game{display:flex;flex-direction:column;gap:2px}.rooting-teams{display:flex;align-items:center;gap:6px}.rooting-teams .team-logo{width:22px;height:22px}
+.rooting-side{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.rooting-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;width:100%}
+.rooting-side.for .rooting-label{color:var(--good)}.rooting-side.against .rooting-label{color:var(--bad)}
+.root-chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;border-radius:999px;padding:3px 10px;border:1px solid var(--line)}
+.root-chip.for{background:var(--good-bg);border-color:rgb(29 107 63 / 25%)}.root-chip.against{background:var(--bad-bg);border-color:rgb(213 10 10 / 20%)}
+.root-league{font-size:11px;color:var(--muted)}.root-pts{font-weight:700;font-variant-numeric:tabular-nums}
+@media(max-width:760px){.rooting-row{grid-template-columns:1fr;gap:6px}}
+/* In the half-width pickup column, stack Add over Drop so names keep their room. */
+.home-grid .swap-row{grid-template-columns:minmax(0,1fr) 60px;gap:4px 12px}
+.home-grid .swap-row .slot-chip{grid-column:1/-1;padding:0}
+.home-grid .swap-side{grid-column:1}
+.home-grid .swap-gain{grid-column:2;grid-row:2/4;align-self:center}
+.home-grid .swap-reason{grid-column:1/-1}

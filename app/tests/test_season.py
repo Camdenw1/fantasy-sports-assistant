@@ -172,3 +172,26 @@ class ShortTermTests(unittest.TestCase):
         from season_rosters import short_term
         rb = lambda pid, near: {'id': pid, 'position': 'RB', 'points': 100, 'near': near}
         self.assertEqual(short_term([rb('s', {'6': 15}), rb('b', {'6': 1})], [rb('x', {'6': 10})], {'s'}, ['RB'], 6, weeks=1), [])
+
+
+class StreamTests(unittest.TestCase):
+    def test_kicker_on_bye_gets_a_stream_and_drops_the_kicker(self):
+        from season_rosters import short_term
+        mine = [{'id': 'rb', 'position': 'RB', 'points': 200, 'near': {'6': 15}},
+                {'id': 'bn', 'position': 'RB', 'points': 30, 'near': {'6': 3}},
+                {'id': 'k', 'position': 'K', 'points': 110, 'near': {'7': 8}}]          # bye in week 6
+        stream = lambda ros: short_term(mine, [{'id': 'k2', 'position': 'K', 'points': ros, 'near': {'6': 9}}], {'rb'}, ['RB'], 6, weeks=1, special=['K'])
+        # A comparable kicker: swap kickers.
+        self.assertEqual([(m['pickup'], m['drop'], m['week_gain']) for m in stream(100)], [('k2', 'k', 9.0)])
+        self.assertIn('on bye', stream(100)[0]['reason'])
+        # Your kicker is clearly better for the rest of the season: keep him, drop the bench.
+        self.assertEqual([(m['pickup'], m['drop']) for m in stream(60)], [('k2', 'bn')])
+        self.assertIn('keep your starter', stream(60)[0]['reason'])
+
+    def test_candidates_are_taken_per_position(self):
+        from season_rosters import short_term
+        mine = [{'id': 'wr', 'position': 'WR', 'points': 150, 'near': {'6': 0}}, {'id': 'bn', 'position': 'RB', 'points': 20, 'near': {'6': 1}}]
+        qbs = [{'id': f'q{i}', 'position': 'QB', 'points': 200, 'near': {'6': 25}} for i in range(50)]
+        wr = {'id': 'w', 'position': 'WR', 'points': 60, 'near': {'6': 10}}
+        moves = short_term(mine, qbs + [wr], set(), ['WR'], 6, weeks=1)
+        self.assertEqual([m['pickup'] for m in moves], ['w'])

@@ -20,6 +20,7 @@ from season_sources import SourceCache
 import season_espn
 import pickem
 import espn_live
+import alerts
 import threading
 import time
 
@@ -30,7 +31,7 @@ SAMPLE = ROOT / "prototypes" / "start-sit" / "sample-output-week3-whatif.json"
 PLAYER_CACHE = ROOT / "prototypes" / "start-sit" / ".cache" / "players_nfl.json"
 REFRESH = RefreshStore(HERE / ".cache" / "reports", version=3)
 SEASON = RefreshStore(HERE / ".cache" / "season", ttl=3600, version=6)
-LEAGUE_SEASON = RefreshStore(HERE / ".cache" / "league-season", ttl=300, version=6)
+LEAGUE_SEASON = RefreshStore(HERE / ".cache" / "league-season", ttl=300, version=8)
 SEASON_HISTORY = History(HERE / ".cache" / "season-history.json")
 PLAYER_LEAGUES = RefreshStore(HERE / ".cache" / "player-leagues", ttl=300, version=1)
 UA = {"User-Agent": "fantasy-sports-assistant/local-dashboard"}
@@ -51,6 +52,22 @@ PICKEM_LOCKS = pickem.LockStore(HERE / ".cache" / "pickem-locks.json")
 def nfl_week():
     state = fetch_json("https://api.sleeper.app/v1/state/nfl")
     return int(state["season"]), int(state.get("week") or state["display_week"])
+
+
+_PLAYER_INDEX = {"mtime": None, "players": {}}
+
+
+def player_index():
+    """Name/team/position by Sleeper id, from the engine's daily player file.
+    Parsed once per file version; the file is ~16 MB."""
+    mtime = PLAYER_CACHE.stat().st_mtime if PLAYER_CACHE.exists() else None
+    if mtime and mtime != _PLAYER_INDEX["mtime"]:
+        raw = json.loads(PLAYER_CACHE.read_text())
+        _PLAYER_INDEX["players"] = {pid: {"name": p.get("full_name") or " ".join(filter(None, [p.get("first_name"), p.get("last_name")])),
+                                          "team": p.get("team"), "pos": p.get("position"), "injury": p.get("injury_status")}
+                                    for pid, p in raw.items() if isinstance(p, dict)}
+        _PLAYER_INDEX["mtime"] = mtime
+    return _PLAYER_INDEX["players"]
 
 
 def nfl_games():
@@ -209,6 +226,14 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError as exc:
                 self.reply(400, {"error": str(exc)})
             return
+        if parsed.path == "/api/players":
+            ids = [i for i in parse_qs(parsed.query).get("ids", [""])[0].split(",") if i]
+            if len(ids) > 400 or any(not re.fullmatch(r"[A-Za-z0-9]{1,12}", i) for i in ids):
+                self.reply(400, {"error": "Invalid player ids"})
+                return
+            index = player_index()
+            self.reply(200, {"players": {i: index[i] for i in ids if i in index}})
+            return
         if parsed.path == "/api/espn-live":
             try:
                 query = parse_qs(parsed.query)
@@ -303,6 +328,7 @@ if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     threading.Thread(target=capture_pickem_locks, daemon=True, name="pickem-locks").start()
+    alerts.start(nfl_games, report, HERE / ".cache" / "alerts-sent.json")
     print("Fantasy Sports Assistant at http://127.0.0.1:" + str(port))
     print("Local only; press Ctrl-C to stop.")
     server.serve_forever()

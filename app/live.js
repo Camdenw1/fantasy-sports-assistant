@@ -98,6 +98,7 @@ function otherMatchups(report, entry) {
 function renderScores(main) {
   const week = activeWeek() || live.pickem?.week;
   main.append(nflStrip());
+  const guide = rootingGuide(); if (guide) main.append(guide);
   if (!state.reports.length && !state.manual.length)
     main.append(node("p", "meta", "Connect a league in Leagues to see your matchups here."));
   for (const report of allReports()) {
@@ -135,6 +136,60 @@ function nflStrip() {
     row.append(tile);
   }
   section.append(row);
+  return section;
+}
+
+/* ---------- Rooting guide: every NFL game, who you need and who you're up against ---------- */
+live.players = {};
+async function loadPlayerNames(ids) {
+  const missing = [...new Set(ids)].filter(id => id && !live.players[id]).slice(0, 400);
+  if (!missing.length) return;
+  try { Object.assign(live.players, (await getJson("/api/players?ids=" + missing.join(","))).players); } catch {}
+}
+function rootingRows() {
+  const byTeam = {};
+  const push = (team, side, item) => { if (!team) return; ((byTeam[team] ||= {for: [], against: []})[side]).push(item); };
+  const short = name => name.length > 14 ? name.split(/\s+/).map(w => w[0]).join("").toUpperCase().slice(0, 4) : name;
+  for (const report of allReports()) {
+    const league = short(report.league.name);
+    if (report.platform === "espn") {
+      for (const row of report.slots) if (row.current?.team)
+        push(row.current.team, "for", {name: row.current.name, league, pts: row.current.actual});
+      continue;
+    }
+    const pair = live.leagues[report.league.id]?.games?.find(p => p.some(m => m.roster_id === report.team.roster_id));
+    if (!pair) continue;
+    for (const m of pair) {
+      const side = m.roster_id === report.team.roster_id ? "for" : "against";
+      for (const id of m.starters || []) {
+        const info = live.players[id];
+        if (info) push(info.team, side, {name: info.name, league, pts: m.players_points?.[id]});
+      }
+    }
+  }
+  return byTeam;
+}
+function rootingGuide() {
+  const ids = allReports().flatMap(r => (live.leagues[r.league.id]?.games || []).flat().flatMap(m => m.starters || []));
+  if (ids.some(id => !live.players[id])) loadPlayerNames(ids).then(() => state.view === "scores" && render());
+  const byTeam = rootingRows();
+  const games = (live.pickem?.games || []).filter(g => byTeam[g.home.abbr] || byTeam[g.away.abbr]);
+  if (!games.length) return null;
+  const section = add(node("section", "rooting"), node("h3", "", "Rooting guide · all your leagues"));
+  const list = node("ol", "rooting-list");
+  for (const g of games) {
+    const sides = ["away", "home"].map(s => byTeam[g[s].abbr] || {for: [], against: []});
+    const mine = sides.flatMap(x => x.for), theirs = sides.flatMap(x => x.against);
+    const chip = (p, cls) => add(node("span", "root-chip " + cls), node("span", "", p.name), node("span", "root-league", p.league),
+      p.pts != null && g.state !== "pre" ? scoreNumber("root:" + cls + p.name + p.league, p.pts, "root-pts") : node("span", ""));
+    const row = node("li", "rooting-row " + g.state);
+    add(row, add(node("div", "rooting-game"), add(node("span", "rooting-teams"), teamLogo(g.away.abbr), node("strong", "", g.away.abbr + " @ " + g.home.abbr), teamLogo(g.home.abbr)),
+      node("span", "meta", g.state === "pre" ? dateTime(g.kickoff) : g.detail + (g.state !== "pre" ? " · " + g.away.score + "–" + g.home.score : ""))),
+      add(node("div", "rooting-side for"), node("span", "rooting-label", "For you · " + mine.length), ...mine.map(p => chip(p, "for"))),
+      add(node("div", "rooting-side against"), node("span", "rooting-label", "Against · " + theirs.length), ...theirs.map(p => chip(p, "against"))));
+    list.append(row);
+  }
+  section.append(list);
   return section;
 }
 

@@ -107,7 +107,7 @@ class LeagueSeasonTests(unittest.TestCase):
         self.assertIsNone(best_lineup(players,['RB','RB']))
         self.assertEqual(best_lineup(players,['RB','FLEX']),(180,['1','2']))
 
-    def test_waiver_protects_starters_and_pauses_on_missing_player(self):
+    def test_waiver_protects_starters_and_lists_unprojected_player(self):
         from season_rosters import apply
         from copy import deepcopy
         players=[{'id':str(i),'position':'RB','points':pts,'injury':None} for i,pts in enumerate([100,20,60])]
@@ -117,9 +117,11 @@ class LeagueSeasonTests(unittest.TestCase):
         result={'players':deepcopy(players),'health':{'issues':[]}};apply(result,ctx)
         self.assertEqual(result['roster']['suggestions'][0]['drop'],'1')
         self.assertEqual(result['roster']['keepers'],['0'])
+        # An owned player with no projection is listed but neither pauses advice nor is dropped.
         ctx['owned'].add('missing');result={'players':deepcopy(players),'health':{'issues':[]}};apply(result,ctx)
-        self.assertEqual(result['roster']['suggestions'],[])
-        self.assertTrue(result['roster']['issues'])
+        self.assertEqual([m['id'] for m in result['roster']['missing']],['missing'])
+        self.assertEqual([s['drop'] for s in result['roster']['suggestions']],['1'])
+        self.assertFalse(result['roster']['issues'])
 
     def test_unsupported_scoring_is_explicit(self):
         from season_scoring import unsupported

@@ -1,5 +1,5 @@
 const byId = id => document.getElementById(id);
-const cachePrefix = 'fantasy-ros-projections-v3:';
+const cachePrefix = 'fantasy-ros-projections-v4:';
 let data = null, position = 'FLEX', loading = false, ownership = 'all', sequence = 0, profile = 'standard', username = '', refreshFailed = false;
 try { username = JSON.parse(localStorage.getItem('fantasy-sleeper-connection'))?.username || ''; } catch {}
 function cacheKey() { return cachePrefix + profile + (profile.startsWith('league:') ? ':' + username.toLowerCase() : ''); }
@@ -7,7 +7,7 @@ function valid(value) {
   return value && Number.isInteger(value.season) && Number.isInteger(value.start_week) &&
     value.start_week >= 1 && value.end_week === 17 && value.start_week <= 17 &&
     Number.isFinite(Date.parse(value.fetched_at)) && Array.isArray(value.players) && value.players.length > 0 &&
-    value.players.every(p => p && typeof p.name === 'string' && ['QB','RB','WR','TE'].includes(p.position) &&
+    value.players.every(p => p && typeof p.name === 'string' && ['QB','RB','WR','TE','K','DEF'].includes(p.position) &&
       Number.isFinite(p.points) && Number.isFinite(p.per_game) && Number.isInteger(p.games) && p.games > 0);
 }
 function loadSaved() { data=null; try { const saved=JSON.parse(localStorage.getItem(cacheKey())); if (valid(saved)) data=saved; } catch {} }
@@ -27,7 +27,7 @@ function render() {
   renderDecisions();
   byId('season-label').textContent = `Football · ${data.season} · Weeks ${data.start_week}–${data.end_week}`;
   const query = byId('player-search').value.trim().toLowerCase();
-  const pool = data.players.filter(p => position === 'FLEX' ? p.position !== 'QB' : p.position === position).sort((a,b)=>(a.ranks?.[position] || 9999)-(b.ranks?.[position] || 9999));
+  const pool = data.players.filter(p => position === 'FLEX' ? ['RB','WR','TE'].includes(p.position) : p.position === position).sort((a,b)=>(a.ranks?.[position] || 9999)-(b.ranks?.[position] || 9999));
   let tier = null;
   pool.forEach((p, index) => {
     if (!(p.name + ' ' + p.team).toLowerCase().includes(query) || (ownership !== 'all' && p.ownership !== ownership)) return;

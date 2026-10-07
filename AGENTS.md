@@ -255,8 +255,10 @@ does the work for him: a one-line lineup verdict, concrete "Start X / Bench Y"
 swaps with team marks and projections, waiver add/drop pairs from the league ROS
 roster suggestions, and a compact lineup with bench in a disclosure. Data checks
 sit in one collapsed list, not cards; bench/reserve injuries show as badges on the
-players. With exactly one league connected, Home is that league (its name is the
-title, no multi-league scaffolding). Lineups use Sleeper `week` (advances Tuesday),
+players. Home opens with one card per team (record, standing, points-for rank, FAAB or
+waiver priority, lineup status, read directly from Sleeper's public API); clicking a
+card switches Home, Lineup and the Players league profile to that team. Home then
+shows only the selected team; its league name is the title. Lineups use Sleeper `week` (advances Tuesday),
 not `display_week`, which shows last week's finished games until Wednesday. A
 starter-pool player ruled Out/IR without a projection is not a projection gap. Connection setup selects a
 platform first: username-only Sleeper, URL and named-team selection for public
@@ -269,7 +271,9 @@ claim authenticated sync. ROS-owned rows have a translucent red fill and marker.
 rankings from current Sleeper weekly data. Keep this independent from the frozen
 draft pipeline. Remaining full weeks through Week 17, current week excluded,
 skill positions only. `season_scoring.py` supports standard half-PPR, Camden and
-Dad presets, and supported live Sleeper scoring. Projections are a two-source
+Dad presets, and supported live Sleeper scoring. Kickers and defenses rank too, on
+standard K/DST totals (Sleeper and ESPN defaults averaged) in every profile, never in
+Flex. Projections are a two-source
 consensus: Sleeper's feed (RotoWire alone) averaged per player-week with ESPN's free
 weekly projections (`season_espn.py`, matched by normalized name + position). ESPN
 failure falls back to RotoWire with a visible health issue. Unknown nonzero rules fail
@@ -278,8 +282,9 @@ payouts are expectations over documented, unbacktested distributions. No extra
 injury multiplier. Custom Flex lists use starter replacement including flex demand;
 position lists still rank by ROS points. No claimed expert consensus or trade values.
 `season_rosters.py` fetches complete Sleeper ownership and protects starters,
-reserves, and the optimal legal core from drop comparisons. Missing owned players
-or unexplained projected-week gaps withhold advice. ESPN/CBS imports are not
+reserves, and the optimal legal core from drop comparisons. An owned player with no
+projection at all is listed and never suggested as a drop, but no longer pauses
+advice (Camden, 6 Oct 2026); unexplained projected-week gaps still withhold it. ESPN/CBS imports are not
 league-wide ownership. `season_sources.py` shares one-hour dated raw reads;
 expired source failures never return a restamped fallback. Connected ownership
 refreshes every five minutes; suggestions pause on failed refresh or stale dates. Preserve source dates and complete-week coverage checks;

@@ -11,7 +11,11 @@ from season_rosters import context as league_context, apply as apply_roster
 import season_espn
 
 POSITIONS = {'QB', 'RB', 'WR', 'TE'}
-POOLS = ('FLEX', 'QB', 'RB', 'WR', 'TE')
+# Kickers and defenses rank on standard K/DST scoring; league custom rules cover skill players.
+SPECIAL = {'K', 'DEF'}
+RANKED = POSITIONS | SPECIAL
+FLEX = {'RB', 'WR', 'TE'}
+POOLS = ('FLEX', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF')
 SCHEDULE_LABELS = ('Hard', 'Tough', 'Neutral', 'Good', 'Easy')
 MOVE_MIN_DAYS = 5      # compare against a snapshot at least this old
 HISTORY_DAYS = 60
@@ -31,7 +35,7 @@ def aggregate(weekly, season, start, end=17, settings=None, dad=False):
             stats = row.get('stats') or {}
             points = stats.get('pts_half_ppr')
             # ADP-only placeholder records are not projections. Never treat them as zero.
-            if (pl.get('position') not in POSITIONS or not row.get('player_id')
+            if (pl.get('position') not in RANKED or not row.get('player_id')
                     or isinstance(points, bool) or not isinstance(points, (int, float))
                     or not math.isfinite(points) or float(stats.get('gp') or 0) <= 0):
                 continue
@@ -52,7 +56,7 @@ def aggregate(weekly, season, start, end=17, settings=None, dad=False):
             player = players.setdefault(pid, {'id': pid, 'name': name,
                 'position': pl['position'], 'team': row.get('team') or pl.get('team'),
                 'injury': pl.get('injury_status'), 'points': 0., 'games': 0, 'opponents': {}, 'projected_weeks': []})
-            if settings is not None or dad:
+            if (settings is not None or dad) and pl['position'] not in SPECIAL:
                 for key,value in stats.items():
                     if isinstance(value,(int,float)) and not math.isfinite(value):
                         raise ValueError('Non-finite projected statistics')
@@ -92,7 +96,7 @@ def aggregate(weekly, season, start, end=17, settings=None, dad=False):
 def assign_ranks(ranked):
     """Overall flex/QB rank, positional rank, and tier within each pool."""
     for pool in POOLS:
-        members = [p for p in ranked if (p['position'] != 'QB' if pool == 'FLEX' else p['position'] == pool)]
+        members = [p for p in ranked if (p['position'] in FLEX if pool == 'FLEX' else p['position'] == pool)]
         if pool == 'FLEX' and any('value_above_replacement' in p for p in members):
             members.sort(key=lambda p:(-p['value_above_replacement'],-p['points'],p['name']))
         breaks = tier_breaks([p.get('value_above_replacement',p['points']) if pool=='FLEX' else p['points'] for p in members], *TIER_SHAPE[pool])
@@ -105,7 +109,7 @@ def assign_ranks(ranked):
 
 
 # Tiers cover the startable pool of each list; everyone deeper shares one last tier.
-TIER_SHAPE = {'QB': (24, 6), 'TE': (24, 6), 'RB': (48, 9), 'WR': (60, 10), 'FLEX': (120, 12)}
+TIER_SHAPE = {'QB': (24, 6), 'TE': (24, 6), 'RB': (48, 9), 'WR': (60, 10), 'FLEX': (120, 12), 'K': (20, 5), 'DEF': (20, 5)}
 
 
 def tier_breaks(points, depth, count):
@@ -152,7 +156,7 @@ def schedule(result, completed):
         for row in rows:
             pl, stats = row.get('player') or {}, row.get('stats') or {}
             pts, defense = stats.get('pts_half_ppr'), row.get('opponent')
-            if pl.get('position') not in POSITIONS or not defense or not isinstance(pts, (int, float)):
+            if pl.get('position') not in RANKED or not defense or not isinstance(pts, (int, float)):
                 continue
             key = (defense, pl['position'])
             allowed.setdefault(key, 0.)
@@ -240,7 +244,7 @@ def build(fetch, history=None, profile="standard", username=None, league_id=None
         ctx['player_metadata']=(source_fetch or fetch)('https://api.sleeper.app/v1/players/nfl')
     read=source_fetch or fetch
     projection_urls=[]
-    query = '&'.join('position[]=' + pos for pos in sorted(POSITIONS))
+    query = '&'.join('position[]=' + pos for pos in sorted(RANKED))
     def load(w):
         url=f'https://api.sleeper.app/projections/nfl/{season}/{w}?season_type=regular&{query}'
         projection_urls.append(url)
@@ -296,7 +300,7 @@ def build(fetch, history=None, profile="standard", username=None, league_id=None
     if history:
         history.apply(result)
     # RefreshStore persists only complete successful results.
-    return {'engine_version': 4, 'reports': [result]}
+    return {'engine_version': 5, 'reports': [result]}
 
 
 def replacement(players, slots, teams):
@@ -313,5 +317,6 @@ def replacement(players, slots, teams):
     for pos in POSITIONS:
         beyond=[p for p in players if p['position']==pos and p['id'] not in selected]
         levels[pos]=beyond[0]['points'] if beyond else 0
-    for p in players: p['value_above_replacement']=round(p['points']-levels[p['position']],1)
+    for p in players:
+        if p['position'] in levels: p['value_above_replacement']=round(p['points']-levels[p['position']],1)
     return levels

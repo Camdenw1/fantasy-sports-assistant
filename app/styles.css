@@ -101,3 +101,26 @@ button:not(.quiet):not(.text-button):not([aria-pressed]):hover{background:rgb(1 
 @media(max-width:760px){.verdict>.meta{grid-column:1/-1}.verdict{grid-template-columns:36px minmax(0,1fr);padding:14px}.verdict-icon{width:36px;height:36px;font-size:17px}.verdict .action{grid-column:1/-1;justify-content:center}.verdict-copy h2{font-size:20px}
 .swap-row{grid-template-columns:minmax(0,1fr) 52px;gap:6px 10px}.swap-row .slot-chip{display:none}.swap-side{grid-column:1}.swap-gain{grid-column:2;grid-row:1/3}.swap-reason{grid-column:1/-1;margin:0}
 .compact-lineup .lock-cell{display:none}.compact-lineup .slot-cell{width:44px}.lineup-list .lineup-head,.lineup-row{padding:8px 0}}
+
+/* Players page: controls live in the header so the rankings start near the top. */
+.season-header{align-items:flex-end;gap:16px;flex-wrap:wrap;padding-bottom:12px}.season-header-controls{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.season-header .season-controls{margin:0;gap:12px;align-items:flex-end}.season-header .season-controls label{gap:4px;font-size:11px}.season-header .season-controls select{min-height:38px;font-size:14px;padding:6px 10px}.season-header .season-controls .meta{padding:0 0 8px;font-size:12px}.season-header #season-refresh{min-height:38px}
+.season-context{padding:8px 0;font-size:12px}
+.season-decisions{padding:10px 0}.season-decisions h2{font-size:14px;margin:0 0 4px}.season-decisions p{margin:0 0 2px;line-height:1.5;font-size:13px}.season-advice{padding:6px 0}.season-advice p{margin:0}
+.season-toolbar{margin:12px 0}.season-filters button{min-height:38px;padding:6px 14px}#player-search{min-height:38px}
+.season-table th{padding:10px 12px}.season-table td{padding:9px 12px}.season-table .team-logo{width:28px;height:28px}.season-tier th{padding:14px 12px 6px}
+@media(max-width:760px){.season-header-controls{width:100%}.season-header .season-controls{width:100%}.season-header .season-controls label{flex:1}.season-filters{overflow-x:auto}.season-filters button{padding:6px 10px}}
+
+/* Team cards: a quick read on each team, and the way to switch which team the app shows. */
+.team-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin:0 0 24px}
+.team-card{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:6px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink);transition:border-color .15s,box-shadow .15s}
+.team-card:hover{border-color:var(--accent-border)}.team-card:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.team-card.selected{border-color:var(--nfl-navy);box-shadow:inset 0 3px var(--nfl-red)}
+.team-cards.single .team-card{cursor:default}.team-cards.single .team-card.selected{box-shadow:none;border-color:var(--line)}
+.team-league{font-size:12px;color:var(--muted)}.team-name{font-size:16px;font-weight:650;line-height:1.25}
+.team-record{display:flex;align-items:baseline;gap:10px}.team-record .record{font-family:Georgia,"Times New Roman",serif;font-size:26px;font-weight:700;color:var(--nfl-navy);font-variant-numeric:tabular-nums;letter-spacing:-.5px}.team-record .place{font-size:13px;color:var(--muted)}.team-record.muted{font-size:13px;color:var(--muted)}
+@media(prefers-color-scheme:dark){.team-record .record{color:var(--ink)}}
+.team-stats{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:0;font-size:13px}.team-stats dt{color:var(--muted)}.team-stats dd{margin:0;font-variant-numeric:tabular-nums;font-weight:500}
+.team-status{align-self:flex-start;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;margin-top:4px;background:var(--subtle);color:var(--muted)}
+.team-status.good,.team-status.done{background:var(--good-bg);color:var(--good)}.team-status.urgent{background:var(--bad-bg);color:var(--bad)}.team-status.upgrade{background:var(--accent-soft);color:var(--accent)}
+@media(max-width:760px){.team-cards{grid-auto-flow:column;grid-template-columns:none;grid-auto-columns:minmax(240px,85%);overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px}.team-card{scroll-snap-align:start}.team-cards.single{grid-auto-columns:100%}}

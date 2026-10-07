@@ -66,7 +66,9 @@ def apply(result, ctx):
         if metadata.get(pid,{}).get('position') not in {'K','DEF','DL','LB','DB','DE','DT','CB','S'}:
             unknown.append({'id':pid,'name':metadata.get(pid,{}).get('full_name') or pid})
     issues=list(result.get('health',{}).get('issues',[]))
-    if unknown: issues.append('Some roster players have no remaining-season projection')
+    # A rostered player with no projection anywhere (deep rookie, practice-squad
+    # stash) is listed, never suggested as a drop, and no longer pauses the
+    # suggestions for everyone else (Camden, 6 Oct 2026).
     if any(p.get('projection_complete') is False and p.get('injury') not in {'IR','PUP','NA','Out','Doubtful','Sus','DNR'} for p in mine):
         issues.append('A roster player has missing projected weeks without an inactive status')
     if ctx['unsupported_slots']: issues.append('Unsupported starter slots')

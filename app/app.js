@@ -343,32 +343,102 @@ function dataChecks(main) {
   const update = node("button", "quiet", "Refresh data"); update.disabled = state.loading; update.addEventListener("click", () => refresh());
   add(details, list, update); main.append(details);
 }
+state.standings = {};
+function ordinal(n) { const s = ["th","st","nd","rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+async function loadStandings(report) {
+  const id = report.league.id, entry = state.standings[id];
+  if (state.sample || (entry && (entry.loading || Date.now() - entry.at < 10 * 60000))) return;
+  state.standings[id] = {loading: true, at: Date.now()};
+  try {
+    // Sleeper's public API allows these cross-origin reads; nothing is written.
+    const [league, rosters] = await Promise.all([
+      getJson("https://api.sleeper.app/v1/league/" + id), getJson("https://api.sleeper.app/v1/league/" + id + "/rosters")]);
+    const points = r => (r.settings?.fpts || 0) + (r.settings?.fpts_decimal || 0) / 100;
+    const mine = rosters.find(r => r.roster_id === report.team.roster_id);
+    if (!mine) throw Error("Roster not found");
+    const standing = [...rosters].sort((a, b) => (b.settings?.wins || 0) - (a.settings?.wins || 0) || points(b) - points(a));
+    const byPoints = [...rosters].sort((a, b) => points(b) - points(a));
+    const faab = league.settings?.waiver_type === 2 ? (league.settings.waiver_budget || 0) - (mine.settings?.waiver_budget_used || 0) : null;
+    state.standings[id] = {at: Date.now(), wins: mine.settings?.wins || 0, losses: mine.settings?.losses || 0, ties: mine.settings?.ties || 0,
+      place: standing.indexOf(mine) + 1, pfRank: byPoints.indexOf(mine) + 1, pf: points(mine), teams: rosters.length,
+      faab, budget: league.settings?.waiver_budget, waiverPosition: mine.settings?.waiver_position,
+      playoffTeams: league.settings?.playoff_teams};
+  } catch { state.standings[id] = {at: Date.now(), error: true}; }
+  if (state.view === "home") render();
+}
+function leagueKeys() { return [...state.reports.map(r => "s:" + r.league.id), ...state.manual.map(l => "m:" + l.id)]; }
+function homeKey() {
+  const keys = leagueKeys();
+  return keys.includes(state.selected) ? state.selected : keys[0];
+}
+function chooseTeam(key) {
+  state.selected = key;
+  // One choice drives Home, Lineup and the Players page's league scoring.
+  if (key.startsWith("s:") && !state.sample) {
+    remember("fantasy-sleeper-connection", {username: state.username, leagueId: key.slice(2)});
+    try { localStorage.setItem("fantasy-player-profile", "league:" + key.slice(2)); } catch {}
+  }
+  if ($("league")) $("league").value = key;
+  render(); window.scrollTo({top: 0, behavior: "instant"});
+}
+function teamCards() {
+  const keys = leagueKeys(), current = homeKey();
+  const row = node("section", "team-cards" + (keys.length === 1 ? " single" : ""));
+  row.setAttribute("aria-label", "Your teams");
+  for (const report of state.reports) {
+    const key = "s:" + report.league.id, info = state.standings[report.league.id];
+    loadStandings(report);
+    const card = node("button", "team-card" + (key === current ? " selected" : ""));
+    card.type = "button"; card.setAttribute("aria-pressed", String(key === current));
+    const verdict = lineupVerdict(report);
+    const status = {urgent: "Swap needed", upgrade: "Upgrade available", good: "Lineup set", done: "Locked", paused: "Check lineup"}[verdict.kind];
+    add(card, node("span", "team-league", report.league.name + " · Sleeper"), node("strong", "team-name", report.team.name || "My team"));
+    if (info && !info.error && !info.loading) {
+      const record = info.wins + "–" + info.losses + (info.ties ? "–" + info.ties : "");
+      add(card, add(node("span", "team-record"), node("span", "record", record), node("span", "place", ordinal(info.place) + " of " + info.teams)));
+      const stats = node("dl", "team-stats");
+      const stat = (label, value) => add(stats, node("dt", "", label), node("dd", "", value));
+      stat("Points for", number(info.pf) + " · " + ordinal(info.pfRank));
+      if (info.faab != null) stat("FAAB left", "$" + info.faab + (info.budget ? " / $" + info.budget : ""));
+      else if (info.waiverPosition) stat("Waiver priority", ordinal(info.waiverPosition));
+      card.append(stats);
+    } else card.append(node("span", "team-record muted", info?.error ? "Standings unavailable" : state.sample ? "Example team" : "Loading standings…"));
+    card.append(node("span", "team-status " + verdict.kind, status));
+    card.addEventListener("click", () => chooseTeam(key));
+    row.append(card);
+  }
+  for (const league of state.manual) {
+    const key = "m:" + league.id, problems = manualItems(league).length;
+    const card = node("button", "team-card" + (key === current ? " selected" : ""));
+    card.type = "button"; card.setAttribute("aria-pressed", String(key === current));
+    add(card, node("span", "team-league", league.name + " · " + league.platform), node("strong", "team-name", league.teamName || league.name),
+      node("span", "team-record muted", "Roster snapshot · week " + league.week + " · " + age(league.savedAt)),
+      node("span", "team-status " + (problems ? "urgent" : "good"), problems ? problems + " to check" : "No problems saved"));
+    card.addEventListener("click", () => chooseTeam(key));
+    row.append(card);
+  }
+  return row;
+}
 function renderHome(main) {
   if (state.sample) main.append(node("div", "notice", "Saved week-3 example. Nothing here is current."));
-  const single = state.reports.length + state.manual.length === 1;
-  for (const report of state.reports) {
-    const section = node("section", "league-home");
-    if (!single) {
-      const head = add(node("div", "league-home-head"), node("h2", "", report.league.name));
-      const view = node("button", "text-button", "Full lineup →"); view.addEventListener("click", () => selectLeague("s:" + report.league.id));
-      section.append(add(head, view));
-    }
+  main.append(teamCards());
+  const key = homeKey();
+  const report = state.reports.find(r => "s:" + r.league.id === key);
+  const league = state.manual.find(l => "m:" + l.id === key);
+  const section = node("section", "league-home");
+  if (report) {
     section.append(verdictBanner(report));
     const swaps = swapList(report); if (swaps) section.append(swaps);
     const grid = node("div", "home-grid");
     add(grid, compactLineup(report), pickupBlock(report));
     section.append(grid);
-    main.append(section);
-  }
-  for (const league of state.manual) {
-    const section = node("section", "league-home");
-    if (!single) section.append(add(node("div", "league-home-head"), node("h2", "", league.name + " · " + league.platform)));
+  } else if (league) {
     const items = manualItems(league);
     if (items.length) items.forEach(item => section.append(item.element));
     else section.append(add(node("section", "verdict good"), node("span", "verdict-icon", "✓"),
       add(node("div", "verdict-copy"), node("h2", "", "No problems in your saved roster"), node("p", "", "Snapshot from " + age(league.savedAt) + ". Re-import after roster moves."))));
-    main.append(section);
   }
+  main.append(section);
   dataChecks(main);
 }
 function playerCell(player) {
@@ -504,8 +574,9 @@ function render() {
   const titles = {home: ["Overview", ""],
     leagues: ["Leagues", "Connect a platform, update a roster, or pick a lineup to review."],
     lineup: ["Lineup", ""]};
-  const onlyLeague = state.reports.length + state.manual.length === 1 ? (state.reports[0]?.league.name || state.manual[0]?.name) : null;
-  titles.home[0] = onlyLeague || "This week";
+  const onlyLeague = state.reports.length + state.manual.length === 1;
+  const focusKey = homeKey(), focus = state.reports.find(r => "s:" + r.league.id === focusKey)?.league.name || state.manual.find(l => "m:" + l.id === focusKey)?.name;
+  titles.home[0] = focus || "This week";
   $("page-title").textContent = titles[state.view][0];
   $("lineup-tab").hidden = Boolean(onlyLeague);
   $("page-description").textContent = titles[state.view][1];

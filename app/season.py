@@ -8,6 +8,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from season_scoring import CAMDEN, SLOTS, STANDARD, weekly_score
 from season_rosters import context as league_context, apply as apply_roster
+import season_espn
 
 POSITIONS = {'QB', 'RB', 'WR', 'TE'}
 POOLS = ('FLEX', 'QB', 'RB', 'WR', 'TE')
@@ -219,7 +220,7 @@ class History:
         temporary.replace(self.path)
 
 
-def build(fetch, history=None, profile="standard", username=None, league_id=None, source_fetch=None):
+def build(fetch, history=None, profile="standard", username=None, league_id=None, source_fetch=None, espn_fetch=None):
     state = fetch('https://api.sleeper.app/v1/state/nfl')
     season = int(state['season'])
     week = int(state.get('week') or state.get('display_week') or 0)
@@ -246,13 +247,23 @@ def build(fetch, history=None, profile="standard", username=None, league_id=None
         return w, read(url)
     with ThreadPoolExecutor(max_workers=4) as pool:
         weekly = dict(pool.map(load, range(start, 18)))
+    # Two-source consensus: Sleeper's feed is RotoWire alone. ESPN failing or matching
+    # too few players leaves RotoWire-only numbers, disclosed as a health issue.
+    matched = 0
+    if espn_fetch:
+        try:
+            weekly, matched = season_espn.blend(weekly, espn_fetch(season_espn.URL.format(season=season)), season)
+        except Exception:
+            matched = 0
     result = aggregate(weekly, season, start, settings=settings, dad=profile=='dad')
+    result['providers'] = sorted(set(result['providers']) | ({'ESPN'} if matched else set()))
+    result['consensus'] = {'sources': ['RotoWire (via Sleeper)'] + (['ESPN'] if matched else []), 'espn_matched': matched}
     result['profile']={'id':profile,'league_id':league_id,'label':label,'slots':slots,
                        'scoring':'dad-buckets' if profile=='dad' else STANDARD if settings is None else settings}
     if hasattr(read,'read_at'):
         stamps=[read.read_at(url) for url in projection_urls]
         result['fetched_at']=dt.datetime.fromtimestamp(min(stamps),dt.timezone.utc).isoformat()
-    issues=[]
+    issues=[] if matched or not espn_fetch else ['ESPN projections unavailable; showing RotoWire only']
     revision=result['source_updated_at']
     if not revision: issues.append('Provider revision date unavailable')
     elif (dt.datetime.now(dt.timezone.utc)-dt.datetime.fromisoformat(revision)).total_seconds()>72*3600:
@@ -285,7 +296,7 @@ def build(fetch, history=None, profile="standard", username=None, league_id=None
     if history:
         history.apply(result)
     # RefreshStore persists only complete successful results.
-    return {'engine_version': 3, 'reports': [result]}
+    return {'engine_version': 4, 'reports': [result]}
 
 
 def replacement(players, slots, teams):

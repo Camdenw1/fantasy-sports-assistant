@@ -17,6 +17,7 @@ from runtime import RefreshStore
 from season import History, build as season_rankings
 from season_rosters import discover as player_leagues
 from season_sources import SourceCache
+import season_espn
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -24,8 +25,8 @@ ENGINE = ROOT / "prototypes" / "start-sit" / "startsit.py"
 SAMPLE = ROOT / "prototypes" / "start-sit" / "sample-output-week3-whatif.json"
 PLAYER_CACHE = ROOT / "prototypes" / "start-sit" / ".cache" / "players_nfl.json"
 REFRESH = RefreshStore(HERE / ".cache" / "reports", version=3)
-SEASON = RefreshStore(HERE / ".cache" / "season", ttl=3600, version=3)
-LEAGUE_SEASON = RefreshStore(HERE / ".cache" / "league-season", ttl=300, version=3)
+SEASON = RefreshStore(HERE / ".cache" / "season", ttl=3600, version=4)
+LEAGUE_SEASON = RefreshStore(HERE / ".cache" / "league-season", ttl=300, version=4)
 SEASON_HISTORY = History(HERE / ".cache" / "season-history.json")
 PLAYER_LEAGUES = RefreshStore(HERE / ".cache" / "player-leagues", ttl=300, version=1)
 UA = {"User-Agent": "fantasy-sports-assistant/local-dashboard"}
@@ -39,6 +40,7 @@ def fetch_json(url):
 
 
 SEASON_SOURCES = SourceCache(HERE / ".cache" / "season-sources", fetch_json)
+ESPN_SOURCES = SourceCache(HERE / ".cache" / "season-sources", season_espn.fetch)
 
 def discover(username):
     if not USERNAME.fullmatch(username):
@@ -149,7 +151,7 @@ class Handler(BaseHTTPRequestHandler):
                     key = (profile, username, league_id)
                     store = LEAGUE_SEASON if profile == "league" else SEASON
                     result = store.request(key, lambda: season_rankings(fetch_json, SEASON_HISTORY,
-                        profile, username, league_id, SEASON_SOURCES), force) if start else store.read(key)
+                        profile, username, league_id, SEASON_SOURCES, ESPN_SOURCES), force) if start else store.read(key)
                 self.reply(200, result)
             except ValueError as exc:
                 self.reply(400, {"error": str(exc)})

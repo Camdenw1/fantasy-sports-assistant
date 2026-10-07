@@ -58,7 +58,7 @@ function render() {
   const early = (data.schedule_weeks || []).length;
   byId('season-sched-note').textContent = early ? `Based on Weeks ${data.schedule_weeks[0]}–${data.schedule_weeks[early-1]}${early < 5 ? ', an early and noisy sample' : ''}.` : 'Unavailable for this snapshot.';
   byId('season-empty').hidden = body.querySelector('tr:not(.season-tier)') !== null;
-  byId('season-source').textContent = (data.scoring_notes || []).join(' · ') + ((data.scoring_notes || []).length ? '. ' : '') + `Source: Sleeper (${(data.providers || []).join(', ')}). Read ${new Date(data.fetched_at).toLocaleString()}. ${data.source_updated_at ? 'Oldest provider revision: ' + new Date(data.source_updated_at).toLocaleString() + '.' : 'Provider revision date unavailable.'}`;
+  byId('season-source').textContent = (data.scoring_notes || []).join(' · ') + ((data.scoring_notes || []).length ? '. ' : '') + `Sources: ${(data.consensus?.sources || ['Sleeper (' + (data.providers || []).join(', ') + ')']).join(' + ')}${data.consensus?.espn_matched ? ` (${data.consensus.espn_matched} players matched)` : ''}. Read ${new Date(data.fetched_at).toLocaleString()}. ${data.source_updated_at ? 'Oldest provider revision: ' + new Date(data.source_updated_at).toLocaleString() + '.' : 'Provider revision date unavailable.'}`;
 }
 function note(message) { byId('season-status').textContent = message; }
 function warning(message) { byId('season-warning').textContent = message; byId('season-warning').hidden = !message; }

@@ -49,11 +49,11 @@ platform setup and imports:
 - **ESPN:** paste a public football league/team URL and choose your team number.
   The local server reads roster, team, and settings views without credentials.
   Review the imported roster and week before saving a snapshot. This adapter is
-  tested with fixtures; Camden's actual ESPN URL is still needed for validation.
+  tested with fixtures; Camden's supplied ESPN league requires sign-in, so its roster has not been imported.
 - **CBS / private ESPN:** copy a roster table with labelled Slot/Pos, Player, and
   Status columns, or paste `slot | player | status` rows. Preview before saving.
   Missing statuses remain Unknown. BN/BE/Bench/IR/Reserve slots are excluded from
-  starter alerts. Actual CBS page layout still needs validation from a supplied URL.
+  starter alerts. CBS also accepts its native roster overview CSV export, with starter/bench totals checked.
 - **Sleeper Pick'em:** can be listed as a snapshot; its picks do not populate here.
 
 Snapshots are saved only in this browser and must be updated after roster or
@@ -276,6 +276,8 @@ redesign, import progress, source review, and next player-ranking milestone.
 ~~~bash
 python3 -m unittest discover -s app/tests
 node app/tests/roster-import.test.js
+node app/tests/season-ui.test.js
+node app/tests/workspace-ui.test.js
 ~~~
 
 ## Reliability and offline behavior
@@ -299,15 +301,63 @@ Verification and handoff: [reliability iteration](docs/product/iteration-2026-09
 ### Current rest-of-season player view
 
 Open **Players** in the dashboard, or `http://127.0.0.1:8765/players.html`.
-This uses current Sleeper/RotoWire weekly half-PPR projections, summed for the
-remaining **full weeks through Week 17**. It excludes the current week and ranks
-RB/WR/TE together by default, with separate position filters. It is a projection
-ranking, not expert consensus, trade values, or a custom-league scoring model.
-The number of projected games and provider/read dates are shown; missing player
-weeks are not extrapolated. Projection reads happen in the background, are
-shared between requests, and retain the last complete snapshot during failure.
-Every remaining week must provide at least 150 real skill-player projection rows;
-ADP-only placeholders are rejected. API endpoints are undocumented and may change.
-The frozen September 7 draft board remains accessible through the archive link.
+This uses current Sleeper/RotoWire weekly projections for the remaining **full
+weeks through Week 17**, excluding the current week. Skill positions only.
+Choose General half-PPR, Camden’s 12-team scoring, Dad’s 10-team weekly buckets,
+or a connected Sleeper league. Position lists order by ROS points; custom-profile
+Flex lists order by points above league starter replacement, including flex demand.
+The current week, kickers, defenses, and draft ADP are excluded.
+
+Connect your Sleeper username in **Leagues**, then choose that league in Players
+for **My players**, **Available**, and a conservative **Roster outlook**. It
+protects current starters, reserve players, and the best projected legal core.
+Pickup/drop comparisons require a same-position bench upgrade of at least 15 ROS
+points and 20%, with the expected starter improvement explained. These are
+read-only comparisons, not transactions or trade values; check news and league
+waiver rules before acting. ESPN/CBS assisted imports remain separate and do not
+provide league-wide waiver ownership.
+
+Unknown nonzero scoring rules fail explicitly. Yardage bonuses use expected
+exclusive tier payouts; Dad’s yard/reception buckets and distance-based TD values
+use distribution assumptions, not thresholds applied to average yards. These
+parameters remain unbacktested. Configured statistics absent from the projection
+feed are disclosed under **How these rankings work**, rather than estimated.
+No additional injury multiplier is applied to the provider’s projected games.
+
+Background projection reads are shared across profiles for one hour and preserve
+their original read dates. Connected ownership refreshes every five minutes while
+the page is open. Failed or incomplete updates retain the last complete snapshot;
+suggestions pause on refresh failure, ownership older than 30 minutes, projection
+reads older than a day, provider revisions older than 72 hours, missing roster
+players, or unexplained missing player weeks. Every remaining week must provide
+at least 150 real skill-player projection rows; ADP placeholders are rejected.
+API endpoints are undocumented and may change. Server/browser snapshots and
+ownership stay in ignored local storage; no personal league data is checked in.
+
+Claude’s positional ranks, k-means tiers, schedule context, and five-day movement
+comparison are preserved. Movement history is separated by season and scoring
+profile. Schedule never changes rank. The frozen September 7 draft board remains
+accessible through the archive link.
+
+Verification and handoff: [league-aware season iteration](docs/product/iteration-league-season.md).
 
 The project’s subtle accents use red (`#980F26`) with translucent fills and markers: selected navigation, position tabs, buttons, and small context marks.
+
+### Everyday navigation and setup
+
+Home shows league counts, lineup actions, injury designations, visible data checks,
+bench/reserve injury reminders, matchup context, and links to lineup review and
+ROS planning. Lineup includes starters, the full current bench and reserve players;
+missing projections remain Unknown. Saved reports without a bench ask for refresh.
+Connected ROS rosters have a translucent red row, left marker and My team badge.
+
+In Leagues, choose a platform first. Sleeper needs one username; it finds all
+current football leagues automatically and returns Home after rosters load.
+Public ESPN needs a team/league URL; choose your team by name if needed, and the
+roster saves directly with starters and bench. CBS and private ESPN use a guided
+roster paste with automatic preview, default name/current week, and optional
+fields folded away. These are browser-local snapshots, not authenticated sync.
+CBS also accepts its native roster overview CSV export. The signed-in CBS page was
+verified and Camden’s 10 starters and eight bench players were saved locally. CSV
+exports omit injuries, so those statuses remain Unknown. Pick’em is a league
+listing only; picks are not imported.

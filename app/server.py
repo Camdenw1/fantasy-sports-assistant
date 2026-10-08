@@ -15,15 +15,25 @@ from urllib.parse import parse_qs, urlparse
 from espn import import_league
 from runtime import RefreshStore
 from season import History, build as season_rankings
+from season_rosters import discover as player_leagues
+from season_sources import SourceCache
+import season_espn
+import pickem
+import espn_live
+import alerts
+import threading
+import time
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
 ENGINE = ROOT / "prototypes" / "start-sit" / "startsit.py"
 SAMPLE = ROOT / "prototypes" / "start-sit" / "sample-output-week3-whatif.json"
 PLAYER_CACHE = ROOT / "prototypes" / "start-sit" / ".cache" / "players_nfl.json"
-REFRESH = RefreshStore(HERE / ".cache" / "reports", version=2)
-SEASON = RefreshStore(HERE / ".cache" / "season", ttl=3600, version=2)
+REFRESH = RefreshStore(HERE / ".cache" / "reports", version=3)
+SEASON = RefreshStore(HERE / ".cache" / "season", ttl=3600, version=6)
+LEAGUE_SEASON = RefreshStore(HERE / ".cache" / "league-season", ttl=300, version=8)
 SEASON_HISTORY = History(HERE / ".cache" / "season-history.json")
+PLAYER_LEAGUES = RefreshStore(HERE / ".cache" / "player-leagues", ttl=300, version=1)
 UA = {"User-Agent": "fantasy-sports-assistant/local-dashboard"}
 USERNAME = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
 LEAGUE_ID = re.compile(r"^[0-9]{1,24}$")
@@ -33,6 +43,52 @@ def fetch_json(url):
     with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=20) as response:
         return json.load(response)
 
+
+SEASON_SOURCES = SourceCache(HERE / ".cache" / "season-sources", fetch_json)
+ESPN_SOURCES = SourceCache(HERE / ".cache" / "season-sources", season_espn.fetch)
+PICKEM_LOCKS = pickem.LockStore(HERE / ".cache" / "pickem-locks.json")
+
+
+def nfl_week():
+    state = fetch_json("https://api.sleeper.app/v1/state/nfl")
+    return int(state["season"]), int(state.get("week") or state["display_week"])
+
+
+_PLAYER_INDEX = {"mtime": None, "players": {}}
+
+
+def player_index():
+    """Name/team/position by Sleeper id, from the engine's daily player file.
+    Parsed once per file version; the file is ~16 MB."""
+    mtime = PLAYER_CACHE.stat().st_mtime if PLAYER_CACHE.exists() else None
+    if mtime and mtime != _PLAYER_INDEX["mtime"]:
+        raw = json.loads(PLAYER_CACHE.read_text())
+        _PLAYER_INDEX["players"] = {pid: {"name": p.get("full_name") or " ".join(filter(None, [p.get("first_name"), p.get("last_name")])),
+                                          "team": p.get("team"), "pos": p.get("position"), "injury": p.get("injury_status")}
+                                    for pid, p in raw.items() if isinstance(p, dict)}
+        _PLAYER_INDEX["mtime"] = mtime
+    return _PLAYER_INDEX["players"]
+
+
+def nfl_games():
+    """Team abbreviation -> this week's game state, kickoff and opponent."""
+    season, week = nfl_week()
+    games = {}
+    for g in pickem.games(fetch_json(pickem.SCOREBOARD.format(season=season, week=week))):
+        for side, other in (("home", "away"), ("away", "home")):
+            games[g[side]["abbr"]] = {"state": g["state"], "kickoff": g["kickoff"], "opp": g[other]["abbr"]}
+    return games
+
+
+def capture_pickem_locks():
+    """Record Sleeper Pick'em lock lines on Tuesday even if nobody opens the app."""
+    while True:
+        try:
+            season, week = nfl_week()
+            pickem.build(fetch_json, PICKEM_LOCKS, season, week)
+        except Exception:
+            pass
+        time.sleep(1800)
 
 def discover(username):
     if not USERNAME.fullmatch(username):
@@ -48,7 +104,7 @@ def discover(username):
     return {
         "username": user.get("display_name") or username,
         "season": season,
-        "week": int(state.get("display_week") or state["week"]),
+        "week": int(state.get("week") or state["display_week"]),
         "fetched_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "leagues": [
             {"id": item["league_id"], "name": item["name"], "status": item.get("status")}
@@ -84,7 +140,7 @@ def report(username, league_id=None, week=None):
         raise ValueError("No current Sleeper roster found for this username.")
     cache_time = (dt.datetime.fromtimestamp(PLAYER_CACHE.stat().st_mtime, dt.timezone.utc)
                   .isoformat() if PLAYER_CACHE.exists() else None)
-    return {"engine_version": 2, "reports": reports, "freshness": {
+    return {"engine_version": 3, "reports": reports, "freshness": {
         "roster_fetched_at": reports[0]["generated_at"],
         "player_list_fetched_at": cache_time,
         "projections_fetched_at": (reports[0]["generated_at"]
@@ -114,10 +170,53 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
-        if parsed.path == "/api/season":
-            query = parse_qs(parsed.query)
-            self.reply(200, SEASON.request(("ros",), lambda: season_rankings(fetch_json, SEASON_HISTORY), query.get("force") == ["1"])
-                       if query.get("start") == ["1"] or query.get("force") == ["1"] else SEASON.read(("ros",)))
+        if parsed.path == '/api/season-state':
+            try:
+                state = SEASON_SOURCES('https://api.sleeper.app/v1/state/nfl')
+                self.reply(200, {'season': int(state['season']), 'week': int(state.get('week') or state['display_week'])})
+            except Exception:
+                self.reply(502, {'error': 'Current week unavailable. Choose the snapshot week.'})
+            return
+        if parsed.path == "/api/pickem":
+            try:
+                query = parse_qs(parsed.query)
+                season, week = nfl_week()
+                requested = query.get("week", [None])[0]
+                if requested is not None:
+                    if not requested.isdigit() or not 1 <= int(requested) <= 18: raise ValueError("Invalid week")
+                    week = int(requested)
+                self.reply(200, pickem.build(fetch_json, PICKEM_LOCKS, season, week))
+            except ValueError as exc:
+                self.reply(400, {"error": str(exc)})
+            except Exception:
+                self.reply(502, {"error": "NFL scoreboard unavailable. Try again shortly."})
+            return
+        if parsed.path in {"/api/season", "/api/player-leagues"}:
+            try:
+                query = parse_qs(parsed.query)
+                username = query.get("username", [""])[0]
+                start = query.get("start") == ["1"] or query.get("force") == ["1"]
+                force = query.get("force") == ["1"]
+                if parsed.path == "/api/player-leagues":
+                    username, _ = refresh_key(username, None)
+                    key = (username,)
+                    result = PLAYER_LEAGUES.request(key, lambda: player_leagues(fetch_json, username), force) if start else PLAYER_LEAGUES.read(key)
+                else:
+                    profile = query.get("profile", ["standard"])[0]
+                    if profile not in {"standard", "camden", "dad", "league"}:
+                        raise ValueError("Unknown scoring profile")
+                    league_id = query.get("league_id", [None])[0]
+                    if profile == "league":
+                        username, _ = refresh_key(username, None)
+                        if not league_id or not LEAGUE_ID.fullmatch(league_id): raise ValueError("Invalid league ID")
+                    else: username, league_id = "", None
+                    key = (profile, username, league_id)
+                    store = LEAGUE_SEASON if profile == "league" else SEASON
+                    result = store.request(key, lambda: season_rankings(fetch_json, SEASON_HISTORY,
+                        profile, username, league_id, SEASON_SOURCES, ESPN_SOURCES), force) if start else store.read(key)
+                self.reply(200, result)
+            except ValueError as exc:
+                self.reply(400, {"error": str(exc)})
             return
         if parsed.path == "/api/refresh":
             try:
@@ -126,6 +225,28 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(200, REFRESH.read(key))
             except ValueError as exc:
                 self.reply(400, {"error": str(exc)})
+            return
+        if parsed.path == "/api/players":
+            ids = [i for i in parse_qs(parsed.query).get("ids", [""])[0].split(",") if i]
+            if len(ids) > 400 or any(not re.fullmatch(r"[A-Za-z0-9]{1,12}", i) for i in ids):
+                self.reply(400, {"error": "Invalid player ids"})
+                return
+            index = player_index()
+            self.reply(200, {"players": {i: index[i] for i in ids if i in index}})
+            return
+        if parsed.path == "/api/espn-live":
+            try:
+                query = parse_qs(parsed.query)
+                try: games = nfl_games()
+                except Exception: games = {}
+                self.reply(200, espn_live.live(query.get("url", [""])[0], query.get("team_id", [None])[0], fetch_json, games))
+            except ValueError as exc:
+                self.reply(400, {"error": str(exc)})
+            except urllib.error.HTTPError as exc:
+                self.reply(502, {"error": "This ESPN league is private, so live data needs ESPN sign-in cookies. It stays a roster snapshot for now."
+                                if exc.code in (401, 403) else "ESPN is unavailable. Try again later."})
+            except Exception:
+                self.reply(502, {"error": "ESPN live data could not be read right now."})
             return
         if parsed.path == "/api/espn":
             try:
@@ -159,13 +280,13 @@ class Handler(BaseHTTPRequestHandler):
             path = ROOT / parsed.path.lstrip("/")
         else:
             path = (HERE / ("index.html" if parsed.path == "/" else parsed.path.lstrip("/"))).resolve()
-        is_logo = path.parent == HERE / "assets" / "teams" and path.suffix == ".png"
+        is_logo = path.parent in {HERE / "assets" / "teams", HERE / "assets"} and path.suffix == ".png"
         if (not path.is_file() or (not is_logo and
-                (path.parent not in {HERE, ROOT} or path.suffix not in {".html", ".css", ".js"}))):
+                (path.parent not in {HERE, ROOT} or path.suffix not in {".html", ".css", ".js", ".webmanifest"}))):
             self.send_error(404)
             return
-        content_type = {".html": "text/html", ".css": "text/css",
-                        ".js": "text/javascript", ".png": "image/png"}[path.suffix]
+        content_type = {".html": "text/html", ".css": "text/css", ".js": "text/javascript",
+                        ".png": "image/png", ".webmanifest": "application/manifest+json"}[path.suffix]
         body = path.read_bytes()
         self.send_response(200)
         self.send_header("Content-Type", content_type if is_logo else content_type + "; charset=utf-8")
@@ -206,6 +327,8 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    threading.Thread(target=capture_pickem_locks, daemon=True, name="pickem-locks").start()
+    alerts.start(nfl_games, report, HERE / ".cache" / "alerts-sent.json")
     print("Fantasy Sports Assistant at http://127.0.0.1:" + str(port))
     print("Local only; press Ctrl-C to stop.")
     server.serve_forever()

@@ -246,16 +246,104 @@ install/uninstall are documented in README. It binds only to localhost. Preserve
 its availability when updating the running server, and verify failure/recovery
 paths when modifying refresh logic. Generated draft data remains frozen.
 
+## Everyday dashboard
+
+Lineup report engine version 3 includes `bench` and `reserve` player references.
+Render these from the current roster, separate from starter recommendations;
+never synthesize zero points for missing projections. Home (Camden, 6 Oct 2026)
+does the work for him: a one-line lineup verdict, concrete "Start X / Bench Y"
+swaps with team marks and projections, waiver add/drop pairs from the league ROS
+roster suggestions, and a compact lineup with bench in a disclosure. Data checks
+sit in one collapsed list, not cards; bench/reserve injuries show as badges on the
+players. Home opens with one card per team (record, standing, points-for rank, FAAB or
+waiver priority, lineup status, read directly from Sleeper's public API); clicking a
+card switches Home, Lineup and the Players league profile to that team. Home then
+shows only the selected team; its league name is the title. Lineups use Sleeper `week` (advances Tuesday),
+not `display_week`, which shows last week's finished games until Wednesday. A
+starter-pool player ruled Out/IR without a projection is not a projection gap. Connection setup selects a
+platform first: username-only Sleeper, URL and named-team selection for public
+ESPN, guided roster paste for CBS/private ESPN. Snapshots remain local; do not
+claim authenticated sync. ROS-owned rows have a translucent red fill and marker.
+
 ## Current season player view
 
 `app/players.html`, `app/season.js`, and `app/season.py` implement ROS projection
 rankings from current Sleeper weekly data. Keep this independent from the frozen
-draft pipeline. Standard half-PPR, remaining full weeks through Week 17, current
-week excluded, skill positions only. No claimed expert consensus, trade values,
-or custom scoring. Preserve source dates and complete-week coverage checks;
+draft pipeline. Remaining full weeks through Week 17, current week excluded,
+skill positions only. `season_scoring.py` supports standard half-PPR, Camden and
+Dad presets, and supported live Sleeper scoring. Kickers and defenses rank too, on
+standard K/DST totals (Sleeper and ESPN defaults averaged) in every profile, never in
+Flex. Projections are a two-source
+consensus: Sleeper's feed (RotoWire alone) averaged per player-week with ESPN's free
+weekly projections (`season_espn.py`, matched by normalized name + position). ESPN
+failure falls back to RotoWire with a visible health issue. Unknown nonzero rules fail
+explicitly; configured stats missing from the feed are disclosed. Bucket/bonus
+payouts are expectations over documented, unbacktested distributions. No extra
+injury multiplier. Custom Flex lists use starter replacement including flex demand;
+position lists still rank by ROS points. No claimed expert consensus or trade values.
+`season_rosters.py` fetches complete Sleeper ownership and protects starters,
+reserves, and the optimal legal core from drop comparisons. An owned player with no
+projection at all is listed and never suggested as a drop, but no longer pauses
+advice (Camden, 6 Oct 2026); unexplained projected-week gaps still withhold it. ESPN/CBS imports are not
+league-wide ownership. `season_sources.py` shares one-hour dated raw reads;
+expired source failures never return a restamped fallback. Connected ownership
+refreshes every five minutes; suggestions pause on failed refresh or stale dates. Preserve source dates and complete-week coverage checks;
 placeholder ADP rows are not projections.
 Tiers are 1-D k-means over each list's startable depth (`TIER_SHAPE`). Schedule
 strength is context only, never a rank input, because Sleeper's projections already
 price matchups. Movement compares against a local rank snapshot at least five days
-old (`app/.cache/season-history.json`) and stays blank until one exists. Red (#980F26), with translucent fills and markers, is the subtle
-project accent, with a white/charcoal canvas.
+old (`app/.cache/season-history.json`) and stays blank until one exists. The
+palette is NFL-themed (Camden, 6 Oct 2026): league navy #013369 as the accent,
+NFL red #D50A0A for markers and urgency, on a white/charcoal canvas.
+
+## Live scores and Pick'em
+
+`app/live.js` adds Scores and Pick'em views (read-only). Scores reads each connected
+Sleeper league's `/matchups/{week}`, users and rosters directly (CORS allowed) and
+ESPN's public NFL scoreboard via `/api/pickem`; it polls every 30s while any NFL game
+is live, otherwise every 5 min. ESPN/CBS snapshot leagues have no live scores yet.
+Score changes count up, pulse and float the gain; reduced-motion users get plain numbers.
+
+Sleeper Pick'em has **no public API**: picks are never read from or sent to Sleeper,
+and the app must not ask for a Sleeper login or token. `app/pickem.py` records ESPN's
+(DraftKings) spread per game once Sleeper's Tuesday 10:00 ET lock has passed
+(`.cache/pickem-locks.json`, written by a 30-min background thread in server.py,
+never overwritten); a capture more than 6h after the lock is flagged approximate and
+the UI says to trust Sleeper's number. Value = the side the market moved toward since
+the lock; Strong when the move touches 3 or 7, Solid at 1.5+ or 4/6/10/14, else Minor
+(the `pickem` skill's rules). Camden's own picks are tapped in and stored in this
+browser only; covering status uses the locked line.
+
+## ESPN live, waivers and installing
+
+`app/espn_live.py` turns one public ESPN league read into the same `startsit/v1`
+report Sleeper's engine produces (plus `standing` and `scoreboard`), using ESPN's own
+weekly projections and each player's `eligibleSlots`; started games stay locked.
+`/api/espn-live` serves it; ESPN leagues imported with a teamId go live automatically
+and their snapshot card is hidden. Still **public leagues only** — no ESPN cookies are
+accepted; private leagues stay snapshots until Camden decides otherwise. ESPN waiver
+suggestions are not built yet.
+
+Waivers: `season_rosters.short_term` adds up to four rentals for the next three weeks
+(a pickup that would start for you), candidates taken per position so quarterbacks
+don't crowd out everyone else, one per position per week. K/DEF streams count (league
+K/DEF slots join the evaluation): the drop is your K/DEF on bye unless it projects 15+
+ROS points better, then your lowest unprotected bench player; skill rentals drop that
+bench player too.
+FAAB bids are client-side: a share of budget by starter gain (rentals ~1%), scaled by the
+league's median winning bid from Sleeper's `/transactions/{week}` when there are 5+
+claims, capped at remaining FAAB and 35% of budget. A rule of thumb, not validated.
+
+The app is installable (manifest + icons in `app/assets/`): Safari → File → Add to
+Dock, or Chrome → Install. It still runs only on Camden's Mac (localhost).
+
+## Game-day alerts and rooting guide
+
+`app/alerts.py` runs in the local service: every 10 min, only when an NFL game kicks
+off within 3 hours, it builds the lineup report for `sleeper_username` in the git-ignored
+`local-settings.json` and sends one macOS notification (osascript) per unlocked starter
+that is Out/IR/PUP/Sus/Doubtful, on bye, an empty slot, or Questionable within 90 min of
+kickoff. Sent keys live in `.cache/alerts-sent.json`. Opt out with
+`"game_day_alerts": false`. Scores has a rooting guide: per NFL game, your starters and
+your opponents' starters across all leagues (names via `/api/players`, from the engine's
+cached Sleeper player file).

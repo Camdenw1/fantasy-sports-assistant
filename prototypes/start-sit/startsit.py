@@ -648,6 +648,8 @@ def run_league(lg, week, me_id, P, sproj, eproj, games, now, schedule_source="es
     projection_gaps = [
         {"id": p["id"], "name": p["name"], "position": p["pos"]}
         for p in pl.values() if not p["sources"] and p["game_state"] != "bye"
+        # A player ruled out has no projection by design; that is not a data gap.
+        and p.get("injury") not in {"Out", "IR", "PUP", "Sus", "NA", "DNR", "COV"}
     ]
     return {
         "schema": "startsit/v1",
@@ -664,6 +666,8 @@ def run_league(lg, week, me_id, P, sproj, eproj, games, now, schedule_source="es
                     "projection_gaps": projection_gaps},
         "totals": {"current": round(sum(cur_t) / SIMS, 1), "recommended": round(sum(rec_t) / SIMS, 1)},
         "slots": rows,
+        "bench": [ref(p) for p in sorted(pl.values(), key=lambda p: (-p['value'], p['name'])) if p['id'] not in cur_ids],
+        "reserve": [ref(player(pid, pp)) for pid in sorted(reserve)],
         "swaps": swaps,
         "alerts": alerts,
         "apply": {"method": "deep_link", "url": f"https://sleeper.com/leagues/{lid}/team",
@@ -731,7 +735,7 @@ def main():
 
     now = dt.datetime.now(dt.timezone.utc)
     state = get(f"{SL}/state/nfl", cache_s=60)
-    season, week = int(state["season"]), a.week or int(state["display_week"] or state["week"])
+    season, week = int(state["season"]), a.week or int(state["week"] or state["display_week"])
     user = get(f"{SL}/user/{a.username}", cache_s=300)
     leagues = get(f"{SL}/user/{user['user_id']}/leagues/nfl/{season}", cache_s=60)
     if a.league:

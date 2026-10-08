@@ -87,4 +87,111 @@ class SeasonTests(unittest.TestCase):
             self.assertEqual(moved['0']['RB'], -149)
             self.assertEqual(moved['1']['RB'], 1)
 
+
+class LeagueSeasonTests(unittest.TestCase):
+    def test_te_premium_and_exclusive_bonus_expectation(self):
+        from season_scoring import weekly_score, CAMDEN, gamma_survival
+        stats={'rec':8,'rec_yd':150,'rec_td':1}
+        expected=8*.75+15+6+3*gamma_survival(150,.65,100)+gamma_survival(150,.65,200)
+        self.assertAlmostEqual(weekly_score(stats,'TE',CAMDEN),expected)
+        self.assertGreater(weekly_score(stats,'TE',CAMDEN),weekly_score(stats,'WR',CAMDEN))
+
+    def test_dad_buckets_are_expected_not_mean_threshold(self):
+        from season_scoring import weekly_score, reception_buckets
+        self.assertGreater(weekly_score({'rush_yd':24},'RB',dad=True),0)
+        self.assertLess(reception_buckets(200,'RB'),9.00001)
+
+    def test_optimizer_does_not_reuse_players_and_respects_slots(self):
+        from season_rosters import best_lineup
+        players=[{'id':'1','position':'RB','points':100},{'id':'2','position':'TE','points':80}]
+        self.assertIsNone(best_lineup(players,['RB','RB']))
+        self.assertEqual(best_lineup(players,['RB','FLEX']),(180,['1','2']))
+
+    def test_waiver_protects_starters_and_lists_unprojected_player(self):
+        from season_rosters import apply
+        from copy import deepcopy
+        players=[{'id':str(i),'position':'RB','points':pts,'injury':None} for i,pts in enumerate([100,20,60])]
+        ctx={'owned':{'0','1'},'occupied':{'0','1'},'starters':{'0'},'reserve':set(),
+             'slots':['RB'],'unsupported_slots':[],'league_id':'1','name':'Fixture',
+             'fetched_at':'2026-09-30T00:00:00Z','player_metadata':{}}
+        result={'players':deepcopy(players),'health':{'issues':[]}};apply(result,ctx)
+        self.assertEqual(result['roster']['suggestions'][0]['drop'],'1')
+        self.assertEqual(result['roster']['keepers'],['0'])
+        # An owned player with no projection is listed but neither pauses advice nor is dropped.
+        ctx['owned'].add('missing');result={'players':deepcopy(players),'health':{'issues':[]}};apply(result,ctx)
+        self.assertEqual([m['id'] for m in result['roster']['missing']],['missing'])
+        self.assertEqual([s['drop'] for s in result['roster']['suggestions']],['1'])
+        self.assertFalse(result['roster']['issues'])
+
+    def test_unsupported_scoring_is_explicit(self):
+        from season_scoring import unsupported
+        self.assertEqual(unsupported({'rec':.5,'bonus_pass_cmp_25':3,'fgm':3}),['bonus_pass_cmp_25'])
+
+    def test_empty_scoring_does_not_fall_back_to_half_ppr(self):
+        from season_scoring import weekly_score, unsupported
+        self.assertEqual(weekly_score({'rec':10,'rec_yd':100},'WR',{}),0)
+        with self.assertRaisesRegex(ValueError,'invalid'): unsupported({'rec':float('nan')})
+
+    def test_unexplained_owned_week_gap_withholds_advice(self):
+        from season_rosters import apply
+        result={'players':[{'id':'1','position':'RB','points':100,'projection_complete':False}],
+                'health':{'issues':[]}}
+        ctx={'owned':{'1'},'occupied':{'1'},'slots':['RB'],'unsupported_slots':[],
+             'league_id':'1','name':'Fixture','fetched_at':'2026-09-30T00:00:00Z'}
+        apply(result,ctx)
+        self.assertEqual(result['roster']['suggestions'],[])
+        self.assertIn('missing projected weeks',' '.join(result['roster']['issues']))
+
+    def test_movement_does_not_mix_profiles(self):
+        weeks={17:[row(p,17,points=200-p) for p in range(150)]}
+        with tempfile.TemporaryDirectory() as folder:
+            history=History(pathlib.Path(folder)/'h.json')
+            first=aggregate(weeks,2026,17);first['profile']={'id':'camden'}
+            history.apply(first,dt.date(2026,10,1))
+            second=aggregate(weeks,2026,17);second['profile']={'id':'dad'}
+            history.apply(second,dt.date(2026,10,8))
+            self.assertNotIn('movement_since',second)
+
 if __name__ == '__main__': unittest.main()
+
+
+class ShortTermTests(unittest.TestCase):
+    def test_bye_cover_pickup_is_short_term_rental(self):
+        from season_rosters import short_term
+        rb = lambda pid, ros, near: {'id': pid, 'position': 'RB', 'points': ros, 'near': near}
+        starter = rb('s', 200, {'6': 15, '7': 0, '8': 15})       # on bye in week 7
+        bench = rb('b', 40, {'6': 2, '7': 2, '8': 2})
+        stream = rb('x', 60, {'6': 9, '7': 11, '8': 6})
+        moves = short_term([starter, bench], [stream], {'s'}, ['RB'], 6)
+        self.assertEqual(len(moves), 1)
+        self.assertEqual((moves[0]['pickup'], moves[0]['drop'], moves[0]['kind']), ('x', 'b', 'short'))
+        self.assertEqual(moves[0]['weeks'], [6, 7, 8][1:2])     # only the bye week clears the bar
+        self.assertEqual(moves[0]['week_gain'], 9.0)
+
+    def test_no_rental_when_nothing_would_start(self):
+        from season_rosters import short_term
+        rb = lambda pid, near: {'id': pid, 'position': 'RB', 'points': 100, 'near': near}
+        self.assertEqual(short_term([rb('s', {'6': 15}), rb('b', {'6': 1})], [rb('x', {'6': 10})], {'s'}, ['RB'], 6, weeks=1), [])
+
+
+class StreamTests(unittest.TestCase):
+    def test_kicker_on_bye_gets_a_stream_and_drops_the_kicker(self):
+        from season_rosters import short_term
+        mine = [{'id': 'rb', 'position': 'RB', 'points': 200, 'near': {'6': 15}},
+                {'id': 'bn', 'position': 'RB', 'points': 30, 'near': {'6': 3}},
+                {'id': 'k', 'position': 'K', 'points': 110, 'near': {'7': 8}}]          # bye in week 6
+        stream = lambda ros: short_term(mine, [{'id': 'k2', 'position': 'K', 'points': ros, 'near': {'6': 9}}], {'rb'}, ['RB'], 6, weeks=1, special=['K'])
+        # A comparable kicker: swap kickers.
+        self.assertEqual([(m['pickup'], m['drop'], m['week_gain']) for m in stream(100)], [('k2', 'k', 9.0)])
+        self.assertIn('on bye', stream(100)[0]['reason'])
+        # Your kicker is clearly better for the rest of the season: keep him, drop the bench.
+        self.assertEqual([(m['pickup'], m['drop']) for m in stream(60)], [('k2', 'bn')])
+        self.assertIn('keep your starter', stream(60)[0]['reason'])
+
+    def test_candidates_are_taken_per_position(self):
+        from season_rosters import short_term
+        mine = [{'id': 'wr', 'position': 'WR', 'points': 150, 'near': {'6': 0}}, {'id': 'bn', 'position': 'RB', 'points': 20, 'near': {'6': 1}}]
+        qbs = [{'id': f'q{i}', 'position': 'QB', 'points': 200, 'near': {'6': 25}} for i in range(50)]
+        wr = {'id': 'w', 'position': 'WR', 'points': 60, 'near': {'6': 10}}
+        moves = short_term(mine, qbs + [wr], set(), ['WR'], 6, weeks=1)
+        self.assertEqual([m['pickup'] for m in moves], ['w'])

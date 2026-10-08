@@ -31,7 +31,7 @@ SAMPLE = ROOT / "prototypes" / "start-sit" / "sample-output-week3-whatif.json"
 PLAYER_CACHE = ROOT / "prototypes" / "start-sit" / ".cache" / "players_nfl.json"
 REFRESH = RefreshStore(HERE / ".cache" / "reports", version=3)
 SEASON = RefreshStore(HERE / ".cache" / "season", ttl=3600, version=6)
-LEAGUE_SEASON = RefreshStore(HERE / ".cache" / "league-season", ttl=300, version=8)
+LEAGUE_SEASON = RefreshStore(HERE / ".cache" / "league-season", ttl=300, version=9)
 SEASON_HISTORY = History(HERE / ".cache" / "season-history.json")
 PLAYER_LEAGUES = RefreshStore(HERE / ".cache" / "player-leagues", ttl=300, version=1)
 UA = {"User-Agent": "fantasy-sports-assistant/local-dashboard"}

@@ -347,3 +347,17 @@ kickoff. Sent keys live in `.cache/alerts-sent.json`. Opt out with
 `"game_day_alerts": false`. Scores has a rooting guide: per NFL game, your starters and
 your opponents' starters across all leagues (names via `/api/players`, from the engine's
 cached Sleeper player file).
+
+## Trade ideas and weekly recap
+
+`app/trades.py` (called from `season_rosters.apply`, Sleeper leagues) proposes up to
+four trades, at most two per team: for each other roster's top players that would raise
+your best ROS starting lineup by 8+, the offer (one of your top 12, or two of your top-5
+bench) that also raises *their* best lineup by 2+ and is close in raw value (1-for-1 ≥
+85%, 2-for-1 ≥ 100%). Ownership and team names come from the league context (`owners`,
+`team_names`, `me`). Home shows them as "Give / Get" with both lineups' gains; they are
+conversation starters, never sent anywhere.
+
+Weekly recap (`live.js`, Sleeper): last week's result and score rank, MVP, and points left
+on the bench versus the hindsight-optimal legal lineup from `matchups/{week}`
+`players_points` and the league's `roster_positions`.

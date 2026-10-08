@@ -193,6 +193,74 @@ function rootingGuide() {
   return section;
 }
 
+/* ---------- Weekly recap: how last week went, and what the bench cost you ---------- */
+live.recaps = {};
+const SLOT_ELIGIBLE = {QB: ["QB"], RB: ["RB"], WR: ["WR"], TE: ["TE"], K: ["K"], DEF: ["DEF"], FLEX: ["RB", "WR", "TE"],
+  REC_FLEX: ["WR", "TE"], WRRB_FLEX: ["WR", "RB"], SUPER_FLEX: ["QB", "RB", "WR", "TE"]};
+function optimalLineup(players, slots) {
+  // Best total over legal assignments; each player and slot used once (slots ≤ 12).
+  let best = new Map([[0, {total: 0, picks: []}]]);
+  for (const p of players) {
+    for (const [mask, value] of [...best]) {
+      slots.forEach((slot, i) => {
+        const bit = 1 << i;
+        if (mask & bit || !SLOT_ELIGIBLE[slot]?.includes(p.pos)) return;
+        const key = mask | bit, total = value.total + p.pts;
+        if (!best.has(key) || best.get(key).total < total) best.set(key, {total, picks: [...value.picks, {slot, id: p.id}]});
+      });
+    }
+  }
+  return [...best.values()].reduce((a, b) => (b.picks.length > a.picks.length || (b.picks.length === a.picks.length && b.total > a.total)) ? b : a);
+}
+async function loadRecap(report, week) {
+  const key = report.league.id + ":" + week;
+  if (live.recaps[key]) return;
+  live.recaps[key] = {loading: true};
+  try {
+    const base = "https://api.sleeper.app/v1/league/" + report.league.id;
+    const [league, matchups] = await Promise.all([getJson(base), getJson(base + "/matchups/" + week)]);
+    const mine = matchups.find(m => m.roster_id === report.team.roster_id);
+    if (!mine || !mine.starters?.length) throw Error("No matchup");
+    const opp = matchups.find(m => m.matchup_id != null && m.matchup_id === mine.matchup_id && m !== mine);
+    await loadPlayerNames(mine.players || []);
+    const slots = (league.roster_positions || []).filter(s => SLOT_ELIGIBLE[s]);
+    const roster = (mine.players || []).map(id => ({id, pos: live.players[id]?.pos, name: live.players[id]?.name || id, pts: mine.players_points?.[id] || 0}));
+    const optimal = slots.length <= 12 ? optimalLineup(roster, slots) : null;
+    const started = new Set(mine.starters);
+    const byId = Object.fromEntries(roster.map(p => [p.id, p]));
+    const missed = optimal ? optimal.picks.map(x => byId[x.id]).filter(p => !started.has(p.id)).sort((a, b) => b.pts - a.pts)[0] : null;
+    const benchedFor = missed ? roster.filter(p => started.has(p.id) && SLOT_ELIGIBLE[optimal.picks.find(x => x.id === missed.id).slot].includes(p.pos))
+      .sort((a, b) => a.pts - b.pts)[0] : null;
+    const all = matchups.map(m => m.points || 0).sort((a, b) => b - a);
+    const mvp = roster.filter(p => started.has(p.id)).sort((a, b) => b.pts - a.pts)[0];
+    live.recaps[key] = {week, points: mine.points || 0, opp: opp?.points, oppName: opp && live.leagues[report.league.id]?.teams?.[opp.roster_id]?.name,
+      rank: all.indexOf(mine.points || 0) + 1, teams: all.length, optimal: optimal?.total, mvp, missed, benchedFor};
+  } catch { live.recaps[key] = {error: true}; }
+  if (state.view === "home") render();
+}
+function recapBlock(report) {
+  if (report.platform === "espn" || state.sample) return null;
+  const week = (activeWeek() || live.pickem?.week || 1) - 1;
+  if (week < 1) return null;
+  const r = live.recaps[report.league.id + ":" + week];
+  if (!r) { loadRecap(report, week); return null; }
+  if (r.loading || r.error) return null;
+  const won = r.opp != null && r.points > r.opp, tied = r.opp != null && r.points === r.opp;
+  const left = r.optimal != null ? Math.max(0, r.optimal - r.points) : null;
+  const section = add(node("section", "recap " + (won ? "won" : tied ? "tied" : "lost")), node("h3", "", "Week " + r.week + " recap"));
+  const headline = add(node("div", "recap-line"),
+    node("strong", "recap-result", r.opp == null ? "" : won ? "W" : tied ? "T" : "L"),
+    node("span", "recap-score", number(r.points) + (r.opp != null ? " – " + number(r.opp) : "")),
+    node("span", "meta", (r.oppName ? "vs " + r.oppName + " · " : "") + ordinal(r.rank) + "-highest score of " + r.teams));
+  const facts = node("ul", "recap-facts");
+  if (r.mvp) facts.append(node("li", "", "MVP: " + r.mvp.name + " · " + number(r.mvp.pts)));
+  if (left != null) facts.append(node("li", "", left < 0.5 ? "Perfect lineup — nothing left on the bench." :
+    "Left " + number(left) + " on the bench" + (r.missed && r.benchedFor ? ": " + r.missed.name + " (" + number(r.missed.pts) + ") over " + r.benchedFor.name + " (" + number(r.benchedFor.pts) + ")" : "") + "."));
+  add(section, headline, facts);
+  return section;
+}
+window.recapBlock = recapBlock;
+
 /* ---------- Pick'em ---------- */
 const pickKey = () => "fantasy-pickem-picks:" + live.pickem.season + ":" + live.pickem.week;
 function picks() { try { return JSON.parse(localStorage.getItem(pickKey())) || {}; } catch { return {}; } }

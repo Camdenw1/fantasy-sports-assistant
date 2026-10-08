@@ -366,6 +366,27 @@ function pickupRow(report, move, players, entry) {
   if (bid) row.append(node("p", "swap-reason bid", bid));
   return row;
 }
+function tradeBlock(report) {
+  const entry = state.pickups[report.league.id];
+  const trades = entry?.roster?.trades;
+  if (!trades?.length || report.platform === "espn") return null;
+  const section = add(node("section", "home-block"), node("h3", "", "Trade ideas"));
+  const list = node("ol", "trade-list");
+  const who = id => { const p = entry.players[id]; return p && {...p, pos: p.position}; };
+  const names = ids => ids.map(id => who(id)).filter(Boolean);
+  for (const t of trades) {
+    const row = node("li", "trade-row");
+    const side = (verb, players, cls) => add(node("div", "trade-side " + cls), node("span", "swap-verb", verb),
+      ...players.map(p => miniPlayer(p, [p.position + (p.ranks?.[p.position] || ""), p.team, number(p.points) + " ROS"].filter(Boolean).join(" · "))));
+    add(row, node("span", "trade-team", "With " + t.team),
+      add(node("div", "trade-sides"), side("Give", names(t.give), "out"), side("Get", names(t.get), "in")),
+      node("p", "swap-reason", "Both lineups improve: you +" + number(t.my_gain) + ", them +" + number(t.their_gain) +
+        " rest-of-season starting points. A starting point for an offer, not a guarantee they’ll accept."));
+    list.append(row);
+  }
+  section.append(list);
+  return section;
+}
 function pickupBlock(report) {
   const section = add(node("section", "home-block"), node("h3", "", "Waiver pickups"));
   if (state.sample) { section.append(node("p", "meta", "Pickups appear for live leagues, using your league’s real rosters.")); return section; }
@@ -528,8 +549,11 @@ function renderHome(main) {
   if (report) {
     section.append(verdictBanner(report));
     const swaps = swapList(report); if (swaps) section.append(swaps);
+    const recap = window.recapBlock?.(report); if (recap) section.append(recap);
     const grid = node("div", "home-grid");
-    add(grid, compactLineup(report), pickupBlock(report));
+    const side = add(node("div", "home-side"), pickupBlock(report));
+    const trades = tradeBlock(report); if (trades) side.append(trades);
+    add(grid, compactLineup(report), side);
     section.append(grid);
   } else if (league) {
     const items = manualItems(league);

@@ -31,11 +31,19 @@ def context(fetch, username, league_id, season):
     if not isinstance(settings,dict) or not isinstance(slots,list): raise ValueError('League scoring or roster rules unavailable')
     unknown=unsupported(settings)
     if unknown: raise ValueError('Unsupported scoring rules: '+', '.join(unknown))
+    # Team names for trade ideas; a failure here only drops the names.
+    try:
+        users=fetch('https://api.sleeper.app/v1/league/'+league_id+'/users')
+        names={u.get('user_id'):(u.get('metadata') or {}).get('team_name') or u.get('display_name') for u in users if isinstance(u,dict)}
+    except Exception:
+        names={}
     return {'league_id':league_id,'name':league['name'],'teams':len(rosters),
             'settings':settings,'slots':[s for s in slots if s in ELIGIBLE],
             'unsupported_slots':[s for s in slots if s not in ELIGIBLE and s not in {'BN','IR','K','DEF'}],
             'special_slots':[s for s in slots if s in {'K','DEF'}],
             'owned':set(str(x) for x in mine['players']), 'occupied':set(ids),
+            'owners':{str(p):r.get('roster_id') for r in rosters for p in r['players']}, 'me':mine.get('roster_id'),
+            'team_names':{r.get('roster_id'):names.get(r.get('owner_id')) or 'Team '+str(r.get('roster_id')) for r in rosters},
             'starters':set(str(x) for x in mine.get('starters') or []),
             'reserve':set(str(x) for x in mine.get('reserve') or []),
             'fetched_at':dt.datetime.now(dt.timezone.utc).isoformat()}
@@ -96,6 +104,7 @@ def apply(result, ctx):
     result['roster']={'league_id':ctx['league_id'],'name':ctx['name'],'fetched_at':ctx['fetched_at'],
         'missing':unknown,'issues':issues,'suggestions':suggestions[:3],
         'short_term':short if not issues and baseline else [],
+        'trades':trade_ideas(result,ctx) if not issues and baseline else [],
         'keepers':baseline[1] if baseline and not issues else []}
 
 
@@ -153,3 +162,10 @@ def short_term(mine, available, protected, slots, start, weeks=3, min_gain=3.0, 
                         'week_gain': gain, 'reason': reason})
     out.sort(key=lambda o: (o['week'], -o['week_gain']))
     return out[:4]
+
+
+def trade_ideas(result, ctx):
+    from trades import ideas
+    if not ctx.get('owners'):
+        return []
+    return ideas(result['players'], ctx['owners'], ctx['me'], ctx.get('team_names', {}), ctx['slots'])

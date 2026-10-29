@@ -235,6 +235,8 @@ function lineupVerdict(report) {
   if (report.slots.every(row => row.locked)) return {kind:"done", title:"Week " + report.league.week + " is locked", detail:number(report.totals.current) + " points"};
   if (reportGaps(report).length) return {kind:"paused", title:"Suggestions paused",
     detail:"No projection yet for " + reportGaps(report).map(p => p.name).join(", ") + ". Check Sleeper before kickoff."};
+  const checks=quality(report);
+  if(checks.length)return {kind:"paused",title:"Refresh before lineup decisions",detail:checks.join(" · ")};
   const forced = report.slots.filter(row => !row.locked && (!row.current || row.current.game_state === "bye" || inactive(row.current)));
   const gain = report.swaps.reduce((sum, swap) => sum + Math.max(0, swap.delta || 0), 0);
   if (forced.length) {
@@ -504,7 +506,7 @@ function teamCards() {
     } else card.append(node("span", "team-record muted", info?.error ? "Standings unavailable" : state.sample ? "Example team" : "Loading standings…"));
     const scores = espn ? {games: report.scoreboard.games.map(pair => pair.map(t => ({roster_id: t.team_id, points: t.points})))} : window.live?.leagues?.[report.league.id];
     const pair = scores?.games?.find(p => p.some(m => m.roster_id === report.team.roster_id));
-    if (pair && window.live.pickem?.games?.some(g => g.state !== "pre")) {
+    if (pair && (espn || scores.week===activeWeek()) && window.live.pickem?.week===activeWeek() && window.live.pickem?.games?.some(g => g.state !== "pre")) {
       const me = pair.find(m => m.roster_id === report.team.roster_id), them = pair.find(m => m !== me);
       const pts = m => m ? (m.custom_points ?? m.points ?? 0) : 0;
       card.append(node("span", "team-live" + (pts(me) >= pts(them) ? " ahead" : ""), number(pts(me)) + " – " + number(pts(them)) +
@@ -529,19 +531,53 @@ function teamCards() {
       continue;
     }
     const key = "m:" + league.id, problems = manualItems(league).length;
+    const outdated=manualNeedsUpdate(league);
+    const unknown=league.starters.some(p=>p.status==='Unknown');
     const card = node("button", "team-card" + (key === current ? " selected" : ""));
     card.type = "button"; card.setAttribute("aria-pressed", String(key === current));
     add(card, node("span", "team-league", league.name + " · " + league.platform), node("strong", "team-name", league.teamName || league.name),
       node("span", "team-record muted", "Roster snapshot · week " + league.week + " · " + age(league.savedAt)),
-      node("span", "team-status " + (problems ? "urgent" : "good"), problems ? problems + " to check" : "No problems saved"));
+      node("span", "team-status " + (outdated || unknown ? "paused" : problems ? "urgent" : "good"), outdated ? "Update roster snapshot" : problems ? problems + " to check" : unknown ? "Verify player statuses" : "No problems entered"));
     card.addEventListener("click", () => chooseTeam(key));
     row.append(card);
   }
   return row;
 }
+function manualNeedsUpdate(league) {
+  return !Number.isFinite(Date.parse(league.savedAt)) || Date.now()-Date.parse(league.savedAt)>86400000 || (activeWeek() && league.week!==activeWeek());
+}
+function managementQueue() {
+  const queue=[];
+  for(const report of allReports()) {
+    const verdict=lineupVerdict(report);
+    if(['good','done'].includes(verdict.kind))continue;
+    queue.push({key:'s:'+report.league.id,name:report.league.name,title:verdict.title,
+      priority:{urgent:0,paused:1,upgrade:2}[verdict.kind] ?? 3});
+  }
+  for(const league of state.manual) {
+    if(liveManual(league) || league.platform==='Sleeper Pick’em')continue;
+    const stale=manualNeedsUpdate(league);
+    queue.push({key:'m:'+league.id,name:league.name,title:stale ? 'Update roster snapshot' : 'Verify saved roster on '+league.platform,priority:stale ? 1 : 3});
+  }
+  return queue.sort((a,b)=>a.priority-b.priority || a.name.localeCompare(b.name));
+}
+function managementOverview() {
+  const queue=managementQueue();
+  const section=node('details','management-overview');
+  section.append(node('summary','','Across all leagues · '+queue.length+' team'+(queue.length===1 ? '' : 's')+' to review'));
+  const list=node('ul','management-list');
+  for(const item of queue) {
+    const button=node('button','management-jump');button.type='button';
+    add(button,node('strong','',item.name),node('span','meta',item.title),node('span','management-arrow','Review →'));
+    button.addEventListener('click',()=>chooseTeam(item.key));list.append(add(node('li'),button));
+  }
+  if(!queue.length)section.append(node('p','meta','No lineup issues found in the available reports. Recheck player news before kickoff.'));
+  section.append(list);return section;
+}
 function renderHome(main) {
   if (state.sample) main.append(node("div", "notice", "Saved week-3 example. Nothing here is current."));
   main.append(teamCards());
+  if(leagueKeys().length>1 && !state.sample)main.append(managementOverview());
   const key = homeKey();
   const report = allReports().find(r => "s:" + r.league.id === key);
   const league = state.manual.find(l => "m:" + l.id === key);
@@ -555,6 +591,9 @@ function renderHome(main) {
     const trades = tradeBlock(report); if (trades) side.append(trades);
     add(grid, compactLineup(report), side);
     section.append(grid);
+  } else if (league && manualNeedsUpdate(league)) {
+    const notice=add(node('section','verdict paused'),add(node('div','verdict-copy'),node('h2','','Update your '+league.platform+' roster'),node('p','','Saved Week '+league.week+' · '+age(league.savedAt)+'. Import the latest roster before reviewing lineup decisions.')));
+    const update=node('button','quiet','Update roster');update.addEventListener('click',()=>editManual(league));notice.append(update);section.append(notice);
   } else if (league) {
     const items = manualItems(league);
     if (items.length) items.forEach(item => section.append(item.element));
@@ -785,12 +824,16 @@ async function getJson(url, options) {
   let response;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 25000);
-  try { response = await fetch(url, {...options, signal:controller.signal}); }
-  catch { throw new Error("Couldn’t reach the dashboard. Check that the local server is running."); }
-  finally { clearTimeout(timeout); }
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error || "Request failed.");
-  return body;
+  try {
+    response=await fetch(url,{...options,signal:controller.signal});
+    const body=await response.json();
+    if(!response.ok)throw Error(body.error || "Request failed.");
+    return body;
+  } catch(error) {
+    if(error.name==='AbortError')throw Error("The update took too long. Your saved data is still available; try again shortly.");
+    if(error instanceof TypeError)throw Error("Couldn’t reach the data source. Check your connection and that the local dashboard is running.");
+    throw error;
+  } finally {clearTimeout(timeout);}
 }
 function remember(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); return true; }

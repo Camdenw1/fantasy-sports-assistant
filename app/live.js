@@ -30,25 +30,28 @@ function scoreNumber(key, value, className = "score") {
 }
 
 /* ---------- Fantasy scoreboards ---------- */
-async function loadLeagueScores(report, week) {
-  const id = report.league.id, entry = live.leagues[id] || {};
-  const base = "https://api.sleeper.app/v1/league/" + id;
+async function loadLeagueScores(report, week, force=false) {
+  if (!Number.isInteger(week) || week<1 || week>18) return;
+  const id=report.league.id, previous=live.leagues[id];
+  if(previous?.week===week && (previous.loading || (!force && previous.retryAt>Date.now()))) return;
+  const entry=previous?.week===week ? previous : {teams:previous?.teams,teamsAt:previous?.teamsAt,week};
+  entry.loading=true;live.leagues[id]=entry;
+  const base="https://api.sleeper.app/v1/league/"+id;
   try {
-    // Users and rosters change rarely; matchups are the live part.
-    if (!entry.teams || Date.now() - entry.teamsAt > 3600000) {
-      const [users, rosters] = await Promise.all([getJson(base + "/users"), getJson(base + "/rosters")]);
-      const names = Object.fromEntries(users.map(u => [u.user_id, u.metadata?.team_name || u.display_name]));
-      entry.teams = Object.fromEntries(rosters.map(r => [r.roster_id, {name: names[r.owner_id] || "Team " + r.roster_id,
-        record: (r.settings?.wins || 0) + "–" + (r.settings?.losses || 0)}]));
-      entry.teamsAt = Date.now();
+    if(!entry.teams || Date.now()-entry.teamsAt>3600000) {
+      const [users,rosters]=await Promise.all([getJson(base+"/users"),getJson(base+"/rosters")]);
+      const names=Object.fromEntries(users.map(u=>[u.user_id,u.metadata?.team_name || u.display_name]));
+      entry.teams=Object.fromEntries(rosters.map(r=>[r.roster_id,{name:names[r.owner_id] || "Team "+r.roster_id,record:(r.settings?.wins || 0)+"–"+(r.settings?.losses || 0)}]));
+      entry.teamsAt=Date.now();
     }
-    const matchups = await getJson(base + "/matchups/" + week);
-    const games = {};
-    for (const m of matchups) if (m.matchup_id != null) (games[m.matchup_id] ||= []).push(m);
-    entry.games = Object.values(games).map(pair => pair.sort((a, b) => a.roster_id - b.roster_id));
-    entry.week = week; entry.at = Date.now(); entry.error = null;
-  } catch { entry.error = "Scores unavailable right now."; }
-  live.leagues[id] = entry;
+    const matchups=await getJson(base+"/matchups/"+week);
+    if(!Array.isArray(matchups) || !matchups.length || matchups.some(m=>!Number.isInteger(m.roster_id) || !Number.isFinite(m.custom_points ?? m.points))) throw Error('Incomplete scores');
+    const games={};
+    for(const m of matchups)if(m.matchup_id!=null)(games[m.matchup_id] ||= []).push(m);
+    entry.games=Object.values(games).map(pair=>pair.sort((a,b)=>a.roster_id-b.roster_id));
+    entry.at=Date.now();entry.error=null;entry.retryAt=0;
+  } catch {entry.error="Scores couldn’t refresh. Try again shortly.";entry.retryAt=Date.now()+60000;}
+  finally {entry.loading=false;}
 }
 function nflState() {
   const games = live.pickem?.games || [];
@@ -58,7 +61,7 @@ function nflState() {
 function matchupCard(report, entry, mine) {
   const me = mine.find(m => m.roster_id === report.team.roster_id), them = mine.find(m => m !== me);
   const card = node("section", "matchup-hero");
-  const nfl = nflState();
+  const nfl = live.pickem?.week===entry.week ? nflState() : {};
   const status = nfl.done ? "Final" : nfl.live ? "Live" : nfl.started ? "In progress" : "Kicks off " +
     (live.pickem?.games?.[0] ? dateTime(live.pickem.games[0].kickoff) : "this week");
   const side = (m, label, projected, cls) => {
@@ -106,9 +109,20 @@ function renderScores(main) {
     // ESPN reports carry their own live scoreboard; Sleeper leagues read matchups directly.
     const entry = espn ? {teams: Object.fromEntries(report.scoreboard.games.flat().map(t => [t.team_id, {name: t.name, record: t.record}])),
       games: report.scoreboard.games.map(pair => pair.map(t => ({roster_id: t.team_id, points: t.points}))), week} : live.leagues[report.league.id];
-    if (!espn && (!entry || entry.week !== week)) { loadLeagueScores(report, week).then(() => state.view === "scores" && render()); }
+    if (!espn && (!entry || entry.week!==week || (!entry.loading && !entry.games && entry.retryAt<=Date.now()))) {
+      loadLeagueScores(report,week).then(()=>state.view==="scores" && render());
+    }
     const section = add(node("section", "league-scores"), node("h2", "", report.league.name));
-    if (!entry?.games) section.append(node("p", "meta", entry?.error || "Loading scores…"));
+    const current=entry?.week===week;
+    if (!espn) {
+      const freshness=node("div","score-freshness");
+      freshness.append(node("span","meta",current && entry.at ? "Scores updated "+age(new Date(entry.at).toISOString())+(entry.error ? " · Saved scores" : "") : "Week "+week));
+      if(current && entry.error)freshness.append(node("span","meta",entry.error));
+      const retry=node("button","text-button",entry?.loading ? "Updating…" : "Refresh scores");retry.disabled=Boolean(entry?.loading);
+      retry.addEventListener("click",()=>{const job=loadLeagueScores(report,week,true);render();job.then(()=>state.view==="scores" && render());});
+      freshness.append(retry);section.append(freshness);
+    }
+    if (!current || !entry?.games) section.append(node("p", "meta", current && entry?.error || "Loading scores…"));
     else {
       const mine = entry.games.find(pair => pair.some(m => m.roster_id === report.team.roster_id)) || [];
       section.append(matchupCard(report, entry, mine));
@@ -141,10 +155,18 @@ function nflStrip() {
 
 /* ---------- Rooting guide: every NFL game, who you need and who you're up against ---------- */
 live.players = {};
+live.playerAttempts = {};
 async function loadPlayerNames(ids) {
-  const missing = [...new Set(ids)].filter(id => id && !live.players[id]).slice(0, 400);
-  if (!missing.length) return;
-  try { Object.assign(live.players, (await getJson("/api/players?ids=" + missing.join(","))).players); } catch {}
+  const missing=[...new Set(ids)].filter(id=>id && id!=='0' && !live.players[id] && !(live.playerAttempts[id]>Date.now()-60000)).slice(0,400);
+  if(!missing.length)return false;
+  for(const id of missing)live.playerAttempts[id]=Date.now();
+  try {
+    const players=(await getJson("/api/players?ids="+missing.join(","))).players;
+    if(!players || typeof players!=='object')return false;
+    let added=false;
+    for(const id of missing)if(players[id]?.name){live.players[id]=players[id];added=true;}
+    return added;
+  } catch {return false;}
 }
 function rootingRows() {
   const byTeam = {};
@@ -158,7 +180,7 @@ function rootingRows() {
       continue;
     }
     const pair = live.leagues[report.league.id]?.games?.find(p => p.some(m => m.roster_id === report.team.roster_id));
-    if (!pair) continue;
+    if (!pair || live.leagues[report.league.id]?.week!==activeWeek()) continue;
     for (const m of pair) {
       const side = m.roster_id === report.team.roster_id ? "for" : "against";
       for (const id of m.starters || []) {
@@ -171,7 +193,7 @@ function rootingRows() {
 }
 function rootingGuide() {
   const ids = allReports().flatMap(r => (live.leagues[r.league.id]?.games || []).flat().flatMap(m => m.starters || []));
-  if (ids.some(id => !live.players[id])) loadPlayerNames(ids).then(() => state.view === "scores" && render());
+  if (ids.some(id => !live.players[id])) loadPlayerNames(ids).then(changed => changed && state.view === "scores" && render());
   const byTeam = rootingRows();
   const games = (live.pickem?.games || []).filter(g => byTeam[g.home.abbr] || byTeam[g.away.abbr]);
   if (!games.length) return null;
@@ -346,16 +368,20 @@ async function loadPickem() {
   catch (error) { live.pickemError = error.message; }
 }
 async function poll() {
-  live.lastPoll = Date.now();
-  await loadPickem();
-  const week = activeWeek() || live.pickem?.week;
-  if (state.view === "scores" || state.view === "home") await Promise.all([...state.reports.map(r => loadLeagueScores(r, week)), refreshEspn()]);
-  if (["scores", "pickem", "home"].includes(state.view)) render();
-  clearTimeout(live.timer);
-  // Fast while any NFL game is on; slow otherwise.
-  live.timer = setTimeout(poll, nflState().live ? 30000 : 300000);
+  if(live.polling)return;
+  live.polling=true;live.lastPoll=Date.now();clearTimeout(live.timer);
+  try {
+    if(document.hidden)return;
+    await loadPickem();
+    const week=activeWeek() || live.pickem?.week;
+    if(state.view==="scores" || state.view==="home")await Promise.all([...state.reports.map(r=>loadLeagueScores(r,week)),refreshEspn()]);
+    if(["scores","pickem","home"].includes(state.view))render();
+  } finally {
+    live.polling=false;
+    live.timer=setTimeout(poll,nflState().live ? 30000 : 300000);
+  }
 }
-function startLive() { if (Date.now() - live.lastPoll > 20000) poll(); }
+function startLive() {if(!document.hidden && Date.now()-live.lastPoll>20000)poll();}
 window.renderScores = renderScores;
 window.renderPickem = renderPickem;
 window.live = live;

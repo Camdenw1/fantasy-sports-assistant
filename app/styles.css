@@ -217,3 +217,12 @@ button.pick.chosen.miss{border-color:var(--bad);background:var(--bad-bg);box-sha
 .recap-line{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}.recap-result{font-family:Georgia,serif;font-size:22px}.recap.won .recap-result{color:var(--good)}.recap.lost .recap-result{color:var(--nfl-red)}
 .recap-score{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
 .recap-facts{margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--ink)}
+
+.score-freshness{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;margin:8px 0 16px}
+
+.management-overview{border-bottom:1px solid var(--border,#e4e4e7);padding:0 0 16px;margin:0 0 24px}
+.management-overview summary{cursor:pointer;font-weight:600;font-size:14px;padding:8px 0}
+.management-list{list-style:none;padding:0;margin:8px 0 0}
+.management-jump{display:flex;align-items:center;gap:16px;width:100%;text-align:left;background:transparent;border:0;border-top:1px solid var(--border,#e4e4e7);border-radius:0;padding:14px 0}
+.management-jump strong{min-width:140px}.management-arrow{margin-left:auto;white-space:nowrap;color:#013369}
+@media(max-width:640px){.management-jump{flex-wrap:wrap;gap:6px 12px}.management-jump strong{width:100%}}

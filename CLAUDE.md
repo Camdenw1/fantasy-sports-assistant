@@ -361,3 +361,12 @@ conversation starters, never sent anywhere.
 Weekly recap (`live.js`, Sleeper): last week's result and score rank, MVP, and points left
 on the bench versus the hindsight-optimal legal lineup from `matchups/{week}`
 `players_points` and the league's `roster_positions`.
+
+## Free-first management direction (29 Oct 2026)
+
+Camden wants a FantasyPros-level personal helper for quick management across all
+leagues, using free sources for now. Do not add paid subscriptions or paywalled
+rankings. Home has a collapsed cross-league review queue; team detail remains
+focused on the selected team. Stale roster/injury data pauses lineup advice. Scores
+retain same-week data with its original read time on failure; never reuse scores
+from another week. Failed reads and missing player identities use retry backoff.

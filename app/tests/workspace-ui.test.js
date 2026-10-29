@@ -47,12 +47,22 @@ vm.runInContext(fs.readFileSync(path.join(__dirname,'../app.js'),'utf8'),context
   assert.match(get('content').textContent,/1 change adds \+2.5 pts/);
   assert.match(get('content').textContent,/StartFixture bench/);
   assert.match(get('content').textContent,/BenchFixture starter/);
+  vm.runInContext("state.freshness.roster_fetched_at='2020-01-01T00:00:00Z';render()",context);
+  assert.match(get('content').textContent,/Refresh before lineup decisions/);
+  assert.doesNotMatch(get('content').textContent,/StartFixture bench/,'Stale inputs must withhold lineup swaps');
+  vm.runInContext("state.freshness.roster_fetched_at=new Date().toISOString()",context);
   vm.runInContext("choosePlatform('CBS')",context);
   assert.equal(get('sleeper-connect-panel').hidden,true);
   assert.equal(get('espn-connect-panel').hidden,true);
   assert.equal(get('manual-import').open,true);
   assert.equal(get('manual-platform').value,'CBS');
   vm.runInContext("state.manual=[{id:'manual',name:'Fixture CBS',platform:'CBS',week:5,starters:[{slot:'RB',player:'Starter',status:'Active'}],bench:[{slot:'BN',player:'Bench',status:'Active'}]}]",context);
+  vm.runInContext("setView('home')",context);
+  assert.match(get('content').textContent,/Across all leagues · 2 teams to review/);
+  assert.equal(vm.runInContext('managementQueue()[0].key',context),'m:manual','An undated roster should rank before a projection upgrade');
+  vm.runInContext("chooseTeam('m:manual')",context);
+  assert.match(get('content').textContent,/Update your CBS roster/);
+  assert.doesNotMatch(get('content').textContent,/No problems in your saved roster/);
   // Updating a manual snapshot must preserve its bench in the editable roster.
   vm.runInContext("editManual({id:'manual',name:'Fixture CBS',platform:'CBS',week:5,starters:[{slot:'RB',player:'Starter',status:'Active'}],bench:[{slot:'BN',player:'Bench',status:'Active'}]})",context);
   assert.match(get('manual-starters').value,/BN \| Bench \| Active/);

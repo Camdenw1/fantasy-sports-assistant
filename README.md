@@ -278,6 +278,7 @@ python3 -m unittest discover -s app/tests
 node app/tests/roster-import.test.js
 node app/tests/season-ui.test.js
 node app/tests/workspace-ui.test.js
+node app/tests/live-ui.test.js
 ~~~
 
 ## Reliability and offline behavior
@@ -301,12 +302,12 @@ Verification and handoff: [reliability iteration](docs/product/iteration-2026-09
 ### Current rest-of-season player view
 
 Open **Players** in the dashboard, or `http://127.0.0.1:8765/players.html`.
-This uses current Sleeper/RotoWire weekly projections for the remaining **full
-weeks through Week 17**, excluding the current week. Skill positions only.
+This averages current Sleeper/RotoWire and free ESPN weekly projections for the remaining **full
+weeks through Week 17**, excluding the current week. Kickers and defenses have separate lists.
 Choose General half-PPR, Camden’s 12-team scoring, Dad’s 10-team weekly buckets,
 or a connected Sleeper league. Position lists order by ROS points; custom-profile
 Flex lists order by points above league starter replacement, including flex demand.
-The current week, kickers, defenses, and draft ADP are excluded.
+The current week and draft ADP are excluded. Kickers and defenses never enter Flex.
 
 Connect your Sleeper username in **Leagues**, then choose that league in Players
 for **My players**, **Available**, and a conservative **Roster outlook**. It
@@ -328,8 +329,7 @@ Background projection reads are shared across profiles for one hour and preserve
 their original read dates. Connected ownership refreshes every five minutes while
 the page is open. Failed or incomplete updates retain the last complete snapshot;
 suggestions pause on refresh failure, ownership older than 30 minutes, projection
-reads older than a day, provider revisions older than 72 hours, missing roster
-players, or unexplained missing player weeks. Every remaining week must provide
+reads older than a day, provider revisions older than 72 hours, unexplained missing player weeks. Every remaining week must provide
 at least 150 real skill-player projection rows; ADP placeholders are rejected.
 API endpoints are undocumented and may change. Server/browser snapshots and
 ownership stay in ignored local storage; no personal league data is checked in.
@@ -341,7 +341,7 @@ accessible through the archive link.
 
 Verification and handoff: [league-aware season iteration](docs/product/iteration-league-season.md).
 
-The project’s subtle accents use red (`#980F26`) with translucent fills and markers: selected navigation, position tabs, buttons, and small context marks.
+The current palette uses NFL navy (`#013369`) with translucent fills and NFL red (`#D50A0A`) for markers and urgency.
 
 ### Everyday navigation and setup
 
@@ -361,3 +361,15 @@ CBS also accepts its native roster overview CSV export. The signed-in CBS page w
 verified and Camden’s 10 starters and eight bench players were saved locally. CSV
 exports omit injuries, so those statuses remain Unknown. Pick’em is a league
 listing only; picks are not imported.
+
+### Cross-league review and live-score reliability
+
+Home includes a collapsed **Across all leagues** queue. It prioritizes unusable
+starters, data checks and lineup upgrades, and keeps snapshot leagues visibly
+separate from synced leagues. Select a row to review that team. Stale roster or
+injury data pauses lineup advice. Scores shows its last successful read time and
+a manual refresh control; outages keep same-week scores without restamping them.
+Week changes cannot display another week's saved scores. Failed requests and
+missing player names are throttled to avoid repeated rendering/network loops.
+
+Direction and remaining work: [free-first management roadmap](docs/product/management-roadmap.md).
